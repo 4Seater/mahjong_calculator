@@ -3,7 +3,6 @@ export type WinType = "self_pick" | "discard";
 export interface NoExposureBonusConfig {
   mode: "multiplier" | "flat";
   value: number;
-  suppressOnConcealedOnly?: boolean;
 }
 
 export interface ScoreInput {
@@ -13,12 +12,17 @@ export interface ScoreInput {
   singlesAndPairs: boolean;
   numPlayers?: number;
   noExposures?: boolean;
-  isCardHandConcealedOnly?: boolean;
   noExposureBonus?: NoExposureBonusConfig;
   misnamedJoker?: boolean;
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
+  // New modifiers
+  totalExposuresAtTable?: number; // For discard payout rule (0-2 vs 3+)
+  jokerlessBonusPoints?: number; // Optional jokerless bonus in points (default 10)
+  jokerlessAsPoints?: boolean; // If true, jokerless adds points instead of multiplier
+  exposurePenaltyPerExposure?: number; // Optional exposure penalty (default 0, range 5-10)
+  winnerExposureCount?: number; // Winner's exposure count for penalty calculation
 }
 
 export interface ScoreResult {
@@ -36,8 +40,9 @@ export interface ScoreResult {
     applied: boolean;
     mode?: "multiplier" | "flat";
     value?: number;
-    suppressed?: boolean;
   };
+  jokerlessPointsBonus?: number;
+  exposurePenalty?: number;
 }
 
 /* ---------------------- TOURNAMENT MODE ---------------------- */

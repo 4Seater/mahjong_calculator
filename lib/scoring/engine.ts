@@ -9,25 +9,61 @@ function sanitizeBase(n: number): number {
   return Math.max(0, Math.round(n));
 }
 
-/** NMJL Standard (money/settlement) — UNCHANGED from earlier message */
+/** 
+ * NMJL Standard (money/settlement) scoring
+ * 
+ * Jokerless Rule (NMJL Official):
+ * - When a player declares Mah Jongg and no Jokers are part of the hand 
+ *   (even if jokers were exchanged from exposures earlier), the hand is jokerless.
+ * - Jokerless + Discard win: Discarder pays 4× base, all other players pay 2× base
+ * - Jokerless + Self-pick win: All players pay 4× base
+ * - Exception: Singles and Pairs Group - jokerless bonus is built into the hand value, so no additional multipliers
+ */
 export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   const base = sanitizeBase(input.basePoints || 0);
   const numPlayers = Math.max(2, input.numPlayers ?? 4);
+  // Jokerless applies only if hand is jokerless AND not Singles and Pairs
   const jokerlessApplied = input.jokerless && !input.singlesAndPairs;
 
   const rule: ScoreResult["rule"] = { 
     jokerlessApplied,
     misnamedJokerApplied: input.misnamedJoker && input.winType === "discard"
   };
+  
   if (input.winType === "self_pick") {
-    rule.allMultiplier = jokerlessApplied ? 4 : 2;
+    // Self-pick: All players pay 2× (or 4× if jokerless with multiplier mode)
+    if (input.jokerlessAsPoints) {
+      // If jokerless is points-based, keep base multiplier
+      rule.allMultiplier = 2;
+    } else {
+      rule.allMultiplier = jokerlessApplied ? 4 : 2;
+    }
   } else {
+    // Discard win
     if (input.misnamedJoker) {
       rule.discarderMultiplier = 4;
       rule.otherMultiplier = 0;
     } else {
-      rule.discarderMultiplier = jokerlessApplied ? 4 : 2;
-      rule.otherMultiplier = jokerlessApplied ? 2 : 1;
+      // Discard payout rule: ×2 if 0–2 exposures at table; ×all if 3+ exposures (only discarder)
+      const totalExposures = input.totalExposuresAtTable ?? 0;
+      if (totalExposures >= 3) {
+        // 3+ exposures: discarder pays same as all others (×all)
+        if (input.jokerlessAsPoints) {
+          rule.discarderMultiplier = 2;
+        } else {
+          rule.discarderMultiplier = jokerlessApplied ? 4 : 2;
+        }
+        rule.otherMultiplier = rule.discarderMultiplier;
+      } else {
+        // 0-2 exposures: normal discard payout
+        if (input.jokerlessAsPoints) {
+          rule.discarderMultiplier = 2;
+          rule.otherMultiplier = 1;
+        } else {
+          rule.discarderMultiplier = jokerlessApplied ? 4 : 2;
+          rule.otherMultiplier = jokerlessApplied ? 2 : 1;
+        }
+      }
     }
   }
 
@@ -50,13 +86,11 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
       (perLoserAmounts.discarder ?? 0) + (perLoserAmounts.others ?? 0) * otherCount;
   }
 
-  // No-Exposures bonus handling (from prior message)
+  // No-Exposures bonus handling
   const neb = input.noExposureBonus;
-  const appliedNoExposureBonus: ScoreResult["appliedNoExposureBonus"] = { applied: false, suppressed: false };
-  const shouldSuppress =
-    !!neb?.suppressOnConcealedOnly && !!input.isCardHandConcealedOnly;
+  const appliedNoExposureBonus: ScoreResult["appliedNoExposureBonus"] = { applied: false };
 
-  if (input.noExposures && neb && !shouldSuppress) {
+  if (input.noExposures && neb) {
     appliedNoExposureBonus.applied = true;
     appliedNoExposureBonus.mode = neb.mode;
     appliedNoExposureBonus.value = neb.value;
@@ -75,8 +109,21 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     } else {
       totalToWinner += Math.round(neb.value);
     }
-  } else if (input.noExposures && neb && shouldSuppress) {
-    appliedNoExposureBonus.suppressed = true;
+  }
+
+  // Jokerless bonus as points (if enabled)
+  let jokerlessPointsBonus = 0;
+  if (input.jokerlessAsPoints && jokerlessApplied) {
+    jokerlessPointsBonus = input.jokerlessBonusPoints ?? 10;
+    totalToWinner += jokerlessPointsBonus;
+  }
+
+  // Exposure penalty (optional house rule)
+  let exposurePenalty = 0;
+  if (input.exposurePenaltyPerExposure && input.exposurePenaltyPerExposure > 0) {
+    const winnerExposures = input.winnerExposureCount ?? 0;
+    exposurePenalty = winnerExposures * input.exposurePenaltyPerExposure;
+    totalToWinner -= exposurePenalty; // Penalty reduces winner's total
   }
 
   const payerMap: Record<string, number> = {};
@@ -103,7 +150,15 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     });
   }
 
-  return { rule, perLoserAmounts, totalToWinner, payerMap, appliedNoExposureBonus };
+  return { 
+    rule, 
+    perLoserAmounts, 
+    totalToWinner, 
+    payerMap, 
+    appliedNoExposureBonus,
+    jokerlessPointsBonus,
+    exposurePenalty
+  };
 }
 
 /* ---------------------- TOURNAMENT SCORER ---------------------- */
