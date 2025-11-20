@@ -1,10 +1,13 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Image, ScrollView, Modal } from "react-native";
+import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Image, ScrollView, Modal, Alert } from "react-native";
 import { computeNmjlStandard, computeTournament } from "@/lib/scoring/engine";
 import type { WinType, NoExposureBonusConfig } from "@/lib/scoring/types";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getColors } from "@/constants/colors";
 import { FontAwesome5 } from '@expo/vector-icons';
+import { saveHand } from "@/lib/storage/handStorage";
+import { SavedHand } from "@/lib/types/game";
+import { HAND_CATEGORIES, getHandsByCategory, getCategoryById, formatHandName } from "@/lib/data/handCategories";
 
 /** Small UI helpers */
 function Row({ children, style, colors }: any) {
@@ -38,7 +41,7 @@ function Seg({ selected, onPress, children, colors }: any) {
 type Mode = "standard" | "tournament";
 
 type Props = {
-  // Optional: wire actual player IDs if you want the payerMap to label real people.
+  
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
@@ -100,6 +103,37 @@ export default function ScoreCalculatorCard({
 
   // Table size
   const [numPlayers, setNumPlayers] = useState<number>(defaultNumPlayers);
+
+  // Hand saving
+  const [handName, setHandName] = useState<string>("");
+  const [isWinner, setIsWinner] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Hand category and selection
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedHand, setSelectedHand] = useState<string>("");
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showHandModal, setShowHandModal] = useState(false);
+
+  // Get available hands for selected category
+  const availableHands = useMemo(() => {
+    if (!selectedCategoryId) return [];
+    return getHandsByCategory(selectedCategoryId);
+  }, [selectedCategoryId]);
+
+  // Update hand name when hand is selected
+  useEffect(() => {
+    if (selectedHand && selectedCategoryId) {
+      const formattedName = formatHandName(selectedCategoryId, selectedHand);
+      setHandName(formattedName);
+    }
+  }, [selectedHand, selectedCategoryId]);
+
+  // Reset hand selection when category changes
+  useEffect(() => {
+    setSelectedHand("");
+    setHandName("");
+  }, [selectedCategoryId]);
 
   // Build config object for bonus (or omit it entirely if not enabled)
   const noExposureBonus =
@@ -228,6 +262,47 @@ export default function ScoreCalculatorCard({
             <Seg selected={mode === "tournament"} onPress={() => setMode("tournament")} colors={colors}>Tournament</Seg>
           </Row>
         </View>
+
+        {/* Hand Category Selection */}
+        <View>
+          <Label colors={colors} sub="Select the category of your hand">Hand Category</Label>
+          <TouchableOpacity
+            style={styles.dropdownButton(colors)}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <Text style={[styles.dropdownText(colors), !selectedCategoryId && styles.dropdownPlaceholder(colors)]}>
+              {selectedCategoryId ? getCategoryById(selectedCategoryId)?.name || "Select Category" : "Select Category"}
+            </Text>
+            <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Hand Selection - Only show if category is selected */}
+        {selectedCategoryId && (
+          <View>
+            <Label colors={colors} sub="Select the specific line number from the category">Line number</Label>
+            <TouchableOpacity
+              style={styles.dropdownButton(colors)}
+              onPress={() => {
+                if (availableHands.length > 0) {
+                  setShowHandModal(true);
+                } else {
+                  Alert.alert("No Hands Available", "This category doesn't have any hands available.");
+                }
+              }}
+              disabled={availableHands.length === 0}
+            >
+              <Text style={[
+                styles.dropdownText(colors), 
+                !selectedHand && styles.dropdownPlaceholder(colors),
+                availableHands.length === 0 && { opacity: 0.5 }
+              ]}>
+                {selectedHand || (availableHands.length === 0 ? "No hands available" : "Select Line number")}
+              </Text>
+              <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Base points */}
         <View>
@@ -593,6 +668,70 @@ export default function ScoreCalculatorCard({
               </Text>
             </View>
 
+            {/* Save Hand Section - Only for Standard Mode */}
+            {mode === "standard" && (
+              <View style={[styles.resultsSection(colors), { marginTop: 20 }]}>
+                <Label colors={colors}>Save This Hand</Label>
+                <Row colors={colors}>
+                  <Label colors={colors} sub="Were you the winner of this hand?">I Was the Winner</Label>
+                  <Switch 
+                    value={isWinner} 
+                    onValueChange={setIsWinner}
+                    trackColor={{ false: colors.border, true: colors.gobutton }}
+                    thumbColor={isWinner ? colors.card : colors.textSecondary}
+                  />
+                </Row>
+                <TouchableOpacity
+                  style={[styles.saveButton(colors), saveSuccess && styles.saveButtonSuccess(colors)]}
+                  onPress={async () => {
+                  if (!selectedCategoryId || !selectedHand) {
+                    Alert.alert("Hand Selection Required", "Please select a category and hand number to save.");
+                    return;
+                  }
+                    try {
+                      const handToSave: SavedHand = {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                        timestamp: Date.now(),
+                        handName: handName.trim(),
+                        basePoints: Number(basePoints || 0),
+                        winType,
+                        jokerless,
+                        singlesAndPairs,
+                        noExposures,
+                        totalToWinner: result.totalToWinner,
+                        displayMode,
+                        mode,
+                        totalExposuresAtTable: Number(totalExposuresAtTable || 0),
+                        jokerlessAsPoints,
+                        jokerlessBonusPoints: Number(jokerlessBonusPoints || 10),
+                        exposurePenalty: result.exposurePenalty,
+                        winnerExposureCount: Number(standardWinnerExposureCount || 0),
+                        perLoserAmounts: result.perLoserAmounts,
+                        isWinner,
+                      };
+                      await saveHand(handToSave);
+                      setSaveSuccess(true);
+                      setTimeout(() => setSaveSuccess(false), 2000);
+                      Alert.alert("Saved!", "Hand saved successfully.");
+                    } catch (error) {
+                      Alert.alert("Error", "Failed to save hand. Please try again.");
+                      console.error("Save error:", error);
+                    }
+                  }}
+                >
+                  <FontAwesome5 
+                    name={saveSuccess ? "check" : "save"} 
+                    size={16} 
+                    color={colors.card} 
+                    style={{ marginRight: 8 }} 
+                  />
+                  <Text style={styles.saveButtonText(colors)}>
+                    {saveSuccess ? "Saved!" : "Save Hand"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Optional: show payer map if IDs were passed */}
             {Object.keys(result.payerMap || {}).length > 0 && (
               <View style={styles.payerMapSection}>
@@ -666,6 +805,115 @@ export default function ScoreCalculatorCard({
             <Text style={styles.themeOptionText(colors)}>Dark Mode</Text>
             {theme === 'dark' && <FontAwesome5 name="check" size={16} color={colors.primary} />}
           </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+
+    {/* Category Selection Modal */}
+    <Modal
+      visible={showCategoryModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowCategoryModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlayBottom(colors)}
+        activeOpacity={1}
+        onPress={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalContent(colors)}>
+          <View style={styles.modalHeader(colors)}>
+            <Text style={styles.modalTitle(colors)}>Select Category</Text>
+            <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+              <FontAwesome5 name="times" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            {HAND_CATEGORIES.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.modalOption(colors),
+                  selectedCategoryId === category.id && styles.modalOptionSelected(colors)
+                ]}
+                onPress={() => {
+                  setSelectedCategoryId(category.id);
+                  setShowCategoryModal(false);
+                }}
+              >
+                <Text style={[
+                  styles.modalOptionText(colors),
+                  selectedCategoryId === category.id && styles.modalOptionTextSelected(colors)
+                ]}>
+                  {category.name}
+                </Text>
+                {selectedCategoryId === category.id && (
+                  <FontAwesome5 name="check" size={16} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+
+    {/* Hand Selection Modal */}
+    <Modal
+      visible={showHandModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowHandModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlayBottom(colors)}
+        activeOpacity={1}
+        onPress={() => setShowHandModal(false)}
+      >
+        <View style={styles.modalContent(colors)}>
+          <View style={styles.modalHeader(colors)}>
+            <Text style={styles.modalTitle(colors)}>
+              Select Hand {selectedCategoryId ? `(${getCategoryById(selectedCategoryId)?.name})` : ''}
+            </Text>
+            <TouchableOpacity onPress={() => setShowHandModal(false)}>
+              <FontAwesome5 name="times" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView}>
+            {availableHands.length === 0 ? (
+              <View style={styles.modalOption(colors)}>
+                <Text style={styles.modalOptionText(colors)}>
+                  No hands available in this category.
+                </Text>
+              </View>
+            ) : (
+              availableHands.map((handNumber) => {
+                const formattedName = formatHandName(selectedCategoryId, handNumber);
+                return (
+                  <TouchableOpacity
+                    key={handNumber}
+                    style={[
+                      styles.modalOption(colors),
+                      selectedHand === handNumber && styles.modalOptionSelected(colors)
+                    ]}
+                    onPress={() => {
+                      setSelectedHand(handNumber);
+                      setShowHandModal(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.modalOptionText(colors),
+                      selectedHand === handNumber && styles.modalOptionTextSelected(colors)
+                    ]}>
+                      {formattedName}
+                    </Text>
+                    {selectedHand === handNumber && (
+                      <FontAwesome5 name="check" size={16} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </ScrollView>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -874,6 +1122,92 @@ const styles = {
     fontSize: 16,
     color: colors.text,
     flex: 1,
+  }),
+  saveButton: (colors: any) => ({
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginTop: 12,
+  }),
+  saveButtonSuccess: (colors: any) => ({
+    backgroundColor: '#4CAF50',
+  }),
+  saveButtonText: (colors: any) => ({
+    color: colors.card,
+    fontSize: 16,
+    fontWeight: '700' as const,
+  }),
+  dropdownButton: (colors: any) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: colors.inputBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
+  }),
+  dropdownText: (colors: any) => ({
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  }),
+  dropdownPlaceholder: (colors: any) => ({
+    color: colors.textSecondary,
+  }),
+  modalOverlayBottom: (colors: any) => ({
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end' as const,
+  }),
+  modalContent: (colors: any) => ({
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: 600,
+    paddingBottom: 20,
+  }),
+  modalHeader: (colors: any) => ({
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  }),
+  modalTitle: (colors: any) => ({
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: colors.text,
+  }),
+  modalScrollView: {
+    maxHeight: 400,
+  },
+  modalOption: (colors: any) => ({
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  }),
+  modalOptionSelected: (colors: any) => ({
+    backgroundColor: colors.inputBackground,
+  }),
+  modalOptionText: (colors: any) => ({
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  }),
+  modalOptionTextSelected: (colors: any) => ({
+    color: colors.primary,
+    fontWeight: '600' as const,
   }),
 };
 

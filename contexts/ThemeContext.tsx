@@ -13,7 +13,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = '@mahjong_calculator_theme';
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setThemeState] = useState<Theme>('light');
+  const [theme, setThemeState] = useState<Theme>('dark'); // Default to dark mode with premium colors
 
   // Load theme from storage on mount
   useEffect(() => {
@@ -25,7 +25,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error('Error loading theme:', error);
-        // Continue with default theme if storage fails
+       
       }
     };
     loadTheme();
