@@ -11,7 +11,6 @@ export interface SavedHand {
   displayMode: "currency" | "points";
   mode: "standard" | "tournament";
   // Additional modifiers
-  totalExposuresAtTable?: number;
   jokerlessAsPoints?: boolean;
   jokerlessBonusPoints?: number;
   exposurePenalty?: number;

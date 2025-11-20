@@ -1,7 +1,7 @@
 export type Theme = 'light' | 'dark';
 
 const lightColors = {
-  primary: '#00C2A8',
+  primary: '#2D5566',
   primaryLight: '#00D9BC',
   card: '#FFFFFF',
   background: '#F5F5F5',
@@ -14,7 +14,7 @@ const lightColors = {
 };
 
 const darkColors = {
-  primary: '#00C2A8',
+  primary: '#2D5566',
   primaryLight: '#00D9BC',
   card: '#1E1E1E',
   background: '#121212',

@@ -8,10 +8,26 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { saveHand } from "@/lib/storage/handStorage";
 import { SavedHand } from "@/lib/types/game";
 import { HAND_CATEGORIES, getHandsByCategory, getCategoryById, formatHandName } from "@/lib/data/handCategories";
+import { getCustomRules, saveCustomRule, deleteCustomRule, type CustomRule } from "@/lib/storage/customRulesStorage";
 
 /** Small UI helpers */
 function Row({ children, style, colors }: any) {
   return <View style={[styles.row(colors), style]}>{children}</View>;
+}
+function RowWithEdit({ children, style, colors, onEdit, editKey }: any) {
+  return (
+    <View style={[styles.row(colors), style]}>
+      {children}
+      {onEdit && (
+        <TouchableOpacity
+          onPress={() => onEdit(editKey)}
+          style={{ padding: 8, marginLeft: 8 }}
+        >
+          <FontAwesome5 name="edit" size={14} color={colors.textSecondary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
 function Label({ children, sub, colors }: { children: React.ReactNode; sub?: string; colors: any }) {
   return (
@@ -21,7 +37,7 @@ function Label({ children, sub, colors }: { children: React.ReactNode; sub?: str
     </View>
   );
 }
-function Seg({ selected, onPress, children, colors }: any) {
+function Seg({ selected, onPress, children, colors, theme }: any) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -32,7 +48,7 @@ function Seg({ selected, onPress, children, colors }: any) {
     >
       <Text style={[
         styles.segText(colors),
-        selected ? styles.segTextSelected(colors) : styles.segTextUnselected(colors)
+        selected ? styles.segTextSelected(colors, theme) : styles.segTextUnselected(colors)
       ]}>{children}</Text>
     </TouchableOpacity>
   );
@@ -69,7 +85,7 @@ export default function ScoreCalculatorCard({
   const [mode, setMode] = useState<Mode>("standard");
 
   // Inputs
-  const [basePoints, setBasePoints] = useState<string>("25");
+  const [basePoints, setBasePoints] = useState<string>("0");
   const [winType, setWinType] = useState<WinType>("self_pick");
   const [jokerless, setJokerless] = useState(false);
   const [singlesAndPairs, setSinglesAndPairs] = useState(false);
@@ -90,16 +106,18 @@ export default function ScoreCalculatorCard({
 
   // No-Exposures bonus controls
   const [noExposures, setNoExposures] = useState(false);
-  const [noExpMode, setNoExpMode] = useState<NoExposureBonusConfig["mode"]>("multiplier"); // "flat" | "multiplier"
-  const [noExpValue, setNoExpValue] = useState<string>("2"); // default ×2 multiplier
 
   // New modifier controls
-  const [totalExposuresAtTable, setTotalExposuresAtTable] = useState<string>("0");
-  const [jokerlessAsPoints, setJokerlessAsPoints] = useState(false);
-  const [jokerlessBonusPoints, setJokerlessBonusPoints] = useState<string>("10");
   const [exposurePenaltyEnabled, setExposurePenaltyEnabled] = useState(false);
   const [exposurePenaltyPerExposure, setExposurePenaltyPerExposure] = useState<string>("5");
   const [standardWinnerExposureCount, setStandardWinnerExposureCount] = useState<string>("0");
+  
+  // Doubles and special rules
+  const [lastTileFromWall, setLastTileFromWall] = useState(false);
+  const [lastTileClaim, setLastTileClaim] = useState(false);
+  const [robbingTheJoker, setRobbingTheJoker] = useState(false);
+  const [eastDouble, setEastDouble] = useState(false);
+  const [isWinnerEast, setIsWinnerEast] = useState(false);
 
   // Table size
   const [numPlayers, setNumPlayers] = useState<number>(defaultNumPlayers);
@@ -115,6 +133,24 @@ export default function ScoreCalculatorCard({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showHandModal, setShowHandModal] = useState(false);
 
+  // Custom rules
+  const [customRules, setCustomRules] = useState<CustomRule[]>([]);
+  const [selectedCustomRuleIds, setSelectedCustomRuleIds] = useState<Set<string>>(new Set());
+  const [showCustomRuleModal, setShowCustomRuleModal] = useState(false);
+  const [newCustomRuleTitle, setNewCustomRuleTitle] = useState<string>("");
+  const [newCustomRuleDescription, setNewCustomRuleDescription] = useState<string>("");
+  const [newCustomRuleType, setNewCustomRuleType] = useState<'multiplier' | 'points'>('multiplier');
+  const [newCustomRuleValue, setNewCustomRuleValue] = useState<string>("");
+
+  // Rule multiplier/points editing
+  const [showEditRuleModal, setShowEditRuleModal] = useState(false);
+  const [editingRuleKey, setEditingRuleKey] = useState<string | null>(null);
+  const [editRuleType, setEditRuleType] = useState<'multiplier' | 'points'>('multiplier');
+  const [editRuleValue, setEditRuleValue] = useState<string>("");
+  
+  // Custom multipliers/points for rules
+  const [customRuleValues, setCustomRuleValues] = useState<Record<string, { type: 'multiplier' | 'points', value: number }>>({});
+
   // Get available hands for selected category
   const availableHands = useMemo(() => {
     if (!selectedCategoryId) return [];
@@ -129,18 +165,60 @@ export default function ScoreCalculatorCard({
     }
   }, [selectedHand, selectedCategoryId]);
 
+  // Handle opening edit modal for a rule
+  const handleEditRule = (ruleKey: string, defaultType: 'multiplier' | 'points', defaultValue: number) => {
+    const custom = customRuleValues[ruleKey];
+    setEditingRuleKey(ruleKey);
+    setEditRuleType(custom?.type || defaultType);
+    setEditRuleValue(custom?.value?.toString() || defaultValue.toString());
+    setShowEditRuleModal(true);
+  };
+
+  // Handle saving edited rule
+  const handleSaveEditRule = () => {
+    if (!editingRuleKey || !editRuleValue) return;
+    const value = parseFloat(editRuleValue);
+    if (isNaN(value) || value <= 0) {
+      Alert.alert("Invalid Value", "Please enter a valid positive number.");
+      return;
+    }
+    setCustomRuleValues({
+      ...customRuleValues,
+      [editingRuleKey]: { type: editRuleType, value }
+    });
+    setShowEditRuleModal(false);
+    setEditingRuleKey(null);
+    setEditRuleValue("");
+  };
+
   // Reset hand selection when category changes
   useEffect(() => {
     setSelectedHand("");
     setHandName("");
   }, [selectedCategoryId]);
 
+  // Disable exposure penalty when no exposures is enabled
+  useEffect(() => {
+    if (noExposures && exposurePenaltyEnabled) {
+      setExposurePenaltyEnabled(false);
+    }
+  }, [noExposures]);
+
+  // Load custom rules on mount
+  useEffect(() => {
+    const loadCustomRules = async () => {
+      const rules = await getCustomRules();
+      setCustomRules(rules);
+    };
+    loadCustomRules();
+  }, []);
+
   // Build config object for bonus (or omit it entirely if not enabled)
   const noExposureBonus =
     noExposures
       ? ({
-          mode: noExpMode,
-          value: Number(noExpValue || 0),
+          mode: customRuleValues.noExposures?.type === 'points' ? 'flat' : 'multiplier',
+          value: customRuleValues.noExposures?.value ?? 2, // Default ×2
         } as NoExposureBonusConfig)
       : undefined;
 
@@ -157,11 +235,27 @@ export default function ScoreCalculatorCard({
       winnerId,
       discarderId,
       otherPlayerIds,
-      totalExposuresAtTable: Number(totalExposuresAtTable || 0),
-      jokerlessAsPoints: jokerlessAsPoints,
-      jokerlessBonusPoints: Number(jokerlessBonusPoints || 10),
       exposurePenaltyPerExposure: exposurePenaltyEnabled ? Number(exposurePenaltyPerExposure || 0) : 0,
-      winnerExposureCount: Number(standardWinnerExposureCount || 0)
+      winnerExposureCount: Number(standardWinnerExposureCount || 0),
+      lastTileFromWall,
+      lastTileClaim,
+      robbingTheJoker,
+      eastDouble,
+      isWinnerEast,
+      customMultipliers: {
+        jokerless: customRuleValues.jokerless?.type === 'multiplier' ? customRuleValues.jokerless.value : undefined,
+        misnamedJoker: customRuleValues.misnamedJoker?.type === 'multiplier' ? customRuleValues.misnamedJoker.value : undefined,
+        lastTileFromWall: customRuleValues.lastTileFromWall?.type === 'multiplier' ? customRuleValues.lastTileFromWall.value : undefined,
+        lastTileClaim: customRuleValues.lastTileClaim?.type === 'multiplier' ? customRuleValues.lastTileClaim.value : undefined,
+        robbingTheJoker: customRuleValues.robbingTheJoker?.type === 'multiplier' ? customRuleValues.robbingTheJoker.value : undefined,
+      },
+      customPoints: {
+        jokerless: customRuleValues.jokerless?.type === 'points' ? customRuleValues.jokerless.value : undefined,
+      },
+      customRules: Array.from(selectedCustomRuleIds).map(id => {
+        const rule = customRules.find(r => r.id === id);
+        return rule ? { id: rule.id, type: rule.type, value: rule.value } : null;
+      }).filter(Boolean) as Array<{ id: string; type: 'multiplier' | 'points'; value: number }>
     });
   }, [
     basePoints,
@@ -170,18 +264,21 @@ export default function ScoreCalculatorCard({
     singlesAndPairs,
     numPlayers,
     noExposures,
-    noExpMode,
-    noExpValue,
     misnamedJoker,
     winnerId,
     discarderId,
     otherPlayerIds,
-    totalExposuresAtTable,
-    jokerlessAsPoints,
-    jokerlessBonusPoints,
     exposurePenaltyEnabled,
     exposurePenaltyPerExposure,
-    standardWinnerExposureCount
+    standardWinnerExposureCount,
+    lastTileFromWall,
+    lastTileClaim,
+    robbingTheJoker,
+    eastDouble,
+    isWinnerEast,
+    selectedCustomRuleIds,
+    customRules,
+    customRuleValues
   ]);
 
   // Tournament result calculation
@@ -207,11 +304,16 @@ export default function ScoreCalculatorCard({
       isWallGame,
       timeExpiredNoScore: timeExpired,
       deadPlayerIds: dead,
+      customRules: Array.from(selectedCustomRuleIds).map(id => {
+        const rule = customRules.find(r => r.id === id);
+        return rule ? { id: rule.id, type: rule.type, value: rule.value } : null;
+      }).filter(Boolean) as Array<{ id: string; type: 'multiplier' | 'points'; value: number }>
     });
   }, [
     mode, basePoints, winType, tournamentWinnerId, tournamentDiscarderId,
     selfPick, jokerless, singlesAndPairs, winnerExposureCount,
-    isWallGame, timeExpired, deadN, deadE, deadW, deadS
+    isWallGame, timeExpired, deadN, deadE, deadW, deadS,
+    selectedCustomRuleIds, customRules
   ]);
 
   useEffect(() => {
@@ -235,7 +337,7 @@ export default function ScoreCalculatorCard({
                 style={styles.logo}
                 resizeMode="contain"
               />
-              <Text style={styles.headerTitle(colors)}>Score Calculator</Text>
+              <Text style={styles.headerTitle(colors)}>Mahjong Score Calculator</Text>
             </View>
             <TouchableOpacity 
               onPress={() => setShowThemeMenu(true)} 
@@ -249,8 +351,8 @@ export default function ScoreCalculatorCard({
         <View style={styles.section}>
           <Label colors={colors}>Display Format</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-            <Seg selected={displayMode === "currency"} onPress={() => setDisplayMode("currency")} colors={colors}>$$ (Money)</Seg>
-            <Seg selected={displayMode === "points"} onPress={() => setDisplayMode("points")} colors={colors}>Points</Seg>
+            <Seg selected={displayMode === "currency"} onPress={() => setDisplayMode("currency")} colors={colors} theme={theme}>$$ (Money)</Seg>
+            <Seg selected={displayMode === "points"} onPress={() => setDisplayMode("points")} colors={colors} theme={theme}>Points</Seg>
           </Row>
         </View>
 
@@ -258,8 +360,8 @@ export default function ScoreCalculatorCard({
         <View style={styles.section}>
           <Label colors={colors}>Calculator Mode</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-            <Seg selected={mode === "standard"} onPress={() => setMode("standard")} colors={colors}>Standard</Seg>
-            <Seg selected={mode === "tournament"} onPress={() => setMode("tournament")} colors={colors}>Tournament</Seg>
+            <Seg selected={mode === "standard"} onPress={() => setMode("standard")} colors={colors} theme={theme}>Standard (NMJL)</Seg>
+            <Seg selected={mode === "tournament"} onPress={() => setMode("tournament")} colors={colors} theme={theme}>Tournament</Seg>
           </Row>
         </View>
 
@@ -306,7 +408,10 @@ export default function ScoreCalculatorCard({
 
         {/* Base points */}
         <View>
-          <Label colors={colors} sub="Type the printed value from your NMJL card (points or cents).">Base Points</Label>
+          <Label colors={colors} sub="Type the printed value from your NMJL card">Base Points</Label>
+          <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
+            (points or cents)
+          </Text>
           <TextInput
             keyboardType="number-pad"
             value={basePoints}
@@ -325,165 +430,298 @@ export default function ScoreCalculatorCard({
       <View style={{ marginTop: 4 }}>
         <Label colors={colors}>Win Type</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-          <Seg selected={winType === "self_pick"} onPress={() => setWinType("self_pick")} colors={colors}>Self-Pick</Seg>
-          <Seg selected={winType === "discard"} onPress={() => setWinType("discard")} colors={colors}>From Discard</Seg>
+          <Seg selected={winType === "self_pick"} onPress={() => setWinType("self_pick")} colors={colors} theme={theme}>Self-Pick</Seg>
+          <Seg selected={winType === "discard"} onPress={() => setWinType("discard")} colors={colors} theme={theme}>From Discard</Seg>
         </Row>
       </View>
 
-      {/* Total Exposures at Table (for discard payout rule) */}
-      {winType === "discard" && (
-        <View style={{ marginTop: 8 }}>
-          <Label colors={colors} sub="Total exposures at table (0-2 = ×2 discarder, 3+ = ×all discarder)">Total Exposures at Table</Label>
-          <TextInput
-            keyboardType="number-pad"
-            value={totalExposuresAtTable}
-            onChangeText={setTotalExposuresAtTable}
-            placeholder="0"
-            placeholderTextColor={colors.textSecondary}
-            style={styles.textInput(colors)}
-          />
-        </View>
-      )}
-
-      {/* Winner Exposure Count (for exposure penalty) */}
-      <View style={{ marginTop: 8 }}>
-        <Label colors={colors} sub="Winner's exposure count (for exposure penalty calculation)">Winner's Exposure Count</Label>
-        <TextInput
-          keyboardType="number-pad"
-          value={standardWinnerExposureCount}
-          onChangeText={setStandardWinnerExposureCount}
-          placeholder="0"
-          placeholderTextColor={colors.textSecondary}
-          style={styles.textInput(colors)}
-        />
-      </View>
-
-      {/* No-Exposures Bonus */}
+      {/* Standard Rules */}
       <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
-        <Row colors={colors}>
-          <Label colors={colors} sub="Award for a fully concealed win (alternate/tournament rule).">No Exposures (Fully Concealed)</Label>
-          <Switch 
-            value={noExposures} 
-            onValueChange={setNoExposures}
-            trackColor={{ false: colors.border, true: colors.gobutton }}
-            thumbColor={noExposures ? colors.card : colors.textSecondary}
-          />
-        </Row>
-
         {/* Jokerless */}
-        <Row colors={colors}>
-          <Label colors={colors} sub="No jokers anywhere in the hand.">Jokerless</Label>
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => handleEditRule('jokerless', 'multiplier', 2)}
+          editKey="jokerless"
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub={`No jokers anywhere in the hand (${customRuleValues.jokerless?.type === 'points' ? '+' : '×'}${customRuleValues.jokerless?.value || 2}).`}>
+              Jokerless
+            </Label>
+          </View>
           <Switch 
             value={jokerless} 
             onValueChange={setJokerless}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={jokerless ? colors.card : colors.textSecondary}
           />
-        </Row>
+        </RowWithEdit>
 
-        {jokerless && (
-          <>
-            <Row colors={colors}>
-              <Label colors={colors} sub="Add points instead of using multiplier">Jokerless as Points Bonus</Label>
-              <Switch 
-                value={jokerlessAsPoints} 
-                onValueChange={setJokerlessAsPoints}
-                trackColor={{ false: colors.border, true: colors.gobutton }}
-                thumbColor={jokerlessAsPoints ? colors.card : colors.textSecondary}
-              />
-            </Row>
-            {jokerlessAsPoints && (
-              <View style={{ marginTop: 6 }}>
-                <Label colors={colors}>Jokerless Bonus Points</Label>
+        {/* Mis-named Joker */}
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => handleEditRule('misnamedJoker', 'multiplier', 4)}
+          editKey="misnamedJoker"
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub={`If a joker is discarded and mis-named, it may be called for mahjong. The multiplier is ${customRuleValues.misnamedJoker?.value || 4}× to the discarder.`}>
+              Mis-named Joker
+            </Label>
+          </View>
+          <Switch 
+            value={misnamedJoker} 
+            onValueChange={setMisnamedJoker}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={misnamedJoker ? colors.card : colors.textSecondary}
+          />
+        </RowWithEdit>
+      </View>
+
+      {/* Optional House Rules */}
+      <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Label colors={colors}>Optional House Rules</Label>
+        </View>
+
+        {/* No Exposures */}
+        <View style={{ marginTop: 8 }}>
+          <RowWithEdit 
+            colors={colors} 
+            onEdit={() => handleEditRule('noExposures', 'multiplier', 2)}
+            editKey="noExposures"
+          >
+            <View style={{ flex: 1 }}>
+              <Label colors={colors} sub={`Award for a fully concealed win (${customRuleValues.noExposures?.type === 'points' ? '+' : '×'}${customRuleValues.noExposures?.value || 2}).`}>
+                No Exposures (Fully Concealed)
+              </Label>
+            </View>
+            <Switch 
+              value={noExposures} 
+              onValueChange={setNoExposures}
+              trackColor={{ false: colors.border, true: colors.gobutton }}
+              thumbColor={noExposures ? colors.card : colors.textSecondary}
+            />
+          </RowWithEdit>
+        </View>
+
+        {/* Exposure Penalty */}
+        <View style={{ marginTop: 8 }}>
+          <RowWithEdit colors={colors} onEdit={undefined} editKey={null}>
+            <View style={{ flex: 1 }}>
+              <Label colors={colors} sub={noExposures ? "Cannot apply exposure penalty when no exposures are present" : "Penalty per exposure"}>Exposure Penalty</Label>
+            </View>
+            <Switch 
+              value={exposurePenaltyEnabled} 
+              onValueChange={setExposurePenaltyEnabled}
+              disabled={noExposures}
+              trackColor={{ false: colors.border, true: colors.gobutton }}
+              thumbColor={exposurePenaltyEnabled ? colors.card : colors.textSecondary}
+            />
+            {/* Invisible placeholder to align with other toggles that have edit icons */}
+            <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
+              <FontAwesome5 name="edit" size={14} color="transparent" />
+            </View>
+          </RowWithEdit>
+          {exposurePenaltyEnabled && (
+            <View style={{ marginTop: 8, padding: 12, backgroundColor: colors.inputBackground, borderRadius: 8 }}>
+              {/* Winner Exposure Count (for exposure penalty) */}
+              <View style={{ marginBottom: 12 }}>
+                <Label colors={colors} sub="Winner's exposure count (for exposure penalty calculation)">Winner's Exposure Count</Label>
                 <TextInput
                   keyboardType="number-pad"
-                  value={jokerlessBonusPoints}
-                  onChangeText={setJokerlessBonusPoints}
-                  placeholder="10"
+                  value={standardWinnerExposureCount}
+                  onChangeText={setStandardWinnerExposureCount}
+                  placeholder="0"
                   placeholderTextColor={colors.textSecondary}
                   style={styles.textInput(colors)}
                 />
               </View>
-            )}
-          </>
-        )}
-
-        {/* Exposure Penalty */}
-        <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
-          <Row colors={colors}>
-            <Label colors={colors} sub="Optional house rule: penalty per exposure">Exposure Penalty</Label>
-            <Switch 
-              value={exposurePenaltyEnabled} 
-              onValueChange={setExposurePenaltyEnabled}
-              trackColor={{ false: colors.border, true: colors.gobutton }}
-              thumbColor={exposurePenaltyEnabled ? colors.card : colors.textSecondary}
-            />
-          </Row>
-          {exposurePenaltyEnabled && (
-            <View style={{ marginTop: 6 }}>
-              <Label colors={colors} sub="Penalty per exposure (5-10 points)">Penalty Per Exposure</Label>
-              <TextInput
-                keyboardType="number-pad"
-                value={exposurePenaltyPerExposure}
-                onChangeText={setExposurePenaltyPerExposure}
-                placeholder="5"
-                placeholderTextColor={colors.textSecondary}
-                style={styles.textInput(colors)}
-              />
+              
+              <View>
+                <Label colors={colors} sub="Penalty per exposure (5-10 points)">Penalty Per Exposure</Label>
+                <TextInput
+                  keyboardType="number-pad"
+                  value={exposurePenaltyPerExposure}
+                  onChangeText={setExposurePenaltyPerExposure}
+                  placeholder="5"
+                  placeholderTextColor={colors.textSecondary}
+                  style={styles.textInput(colors)}
+                />
+              </View>
             </View>
           )}
         </View>
 
-        {noExposures && (
-          <>
-            <Label colors={colors} sub="Choose whether the bonus is a flat add or a multiplier applied to each payer.">Bonus Type</Label>
-            <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-              <Seg selected={noExpMode === "flat"} onPress={() => setNoExpMode("flat")} colors={colors}>Flat (+)</Seg>
-              <Seg selected={noExpMode === "multiplier"} onPress={() => setNoExpMode("multiplier")} colors={colors}>Multiplier (×)</Seg>
-            </Row>
 
-            <View style={{ marginTop: 6 }}>
-              <Label colors={colors}>{noExpMode === "flat" ? "Flat Bonus Amount" : "Multiplier Value"}</Label>
-              <TextInput
-                keyboardType="decimal-pad"
-                value={noExpValue}
-                onChangeText={setNoExpValue}
-                placeholder={noExpMode === "flat" ? "e.g., 10" : "e.g., 2"}
-                placeholderTextColor={colors.textSecondary}
-                style={styles.textInput(colors)}
-              />
-            </View>
-          </>
-        )}
-      </View>
+        {/* Doubles and Special Rules */}
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => handleEditRule('lastTileFromWall', 'multiplier', 2)}
+          editKey="lastTileFromWall"
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub="Last tile taken from wall">Last Tile from Wall</Label>
+          </View>
+          <Switch 
+            value={lastTileFromWall} 
+            onValueChange={setLastTileFromWall}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={lastTileFromWall ? colors.card : colors.textSecondary}
+          />
+        </RowWithEdit>
 
-      {/* Misnamed Joker - only show for discard wins */}
-      {winType === "discard" && (
-        <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
-          <Row colors={colors}>
-            <Label colors={colors} sub="The player who discarded pays 4× base, others pay nothing.">Misnamed Joker</Label>
-            <Switch 
-              value={misnamedJoker} 
-              onValueChange={setMisnamedJoker}
-              trackColor={{ false: colors.border, true: colors.gobutton }}
-              thumbColor={misnamedJoker ? colors.card : colors.textSecondary}
-            />
-          </Row>
-        </View>
-      )}
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => handleEditRule('lastTileClaim', 'multiplier', 2)}
+          editKey="lastTileClaim"
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub="Last tile discarded in the game">Last Tile Claim</Label>
+          </View>
+          <Switch 
+            value={lastTileClaim} 
+            onValueChange={setLastTileClaim}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={lastTileClaim ? colors.card : colors.textSecondary}
+          />
+        </RowWithEdit>
 
-          {/* Players */}
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => handleEditRule('robbingTheJoker', 'multiplier', 2)}
+          editKey="robbingTheJoker"
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub="Robbing a joker from a player's exposure for Mah Jongg">Robbing the Joker</Label>
+          </View>
+          <Switch 
+            value={robbingTheJoker} 
+            onValueChange={setRobbingTheJoker}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={robbingTheJoker ? colors.card : colors.textSecondary}
+          />
+        </RowWithEdit>
+
+        <RowWithEdit colors={colors} onEdit={undefined} editKey={null}>
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub="East pays or receives double">East's Double Payout</Label>
+          </View>
+          <Switch 
+            value={eastDouble} 
+            onValueChange={setEastDouble}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={eastDouble ? colors.card : colors.textSecondary}
+          />
+          {/* Invisible placeholder to align with other toggles that have edit icons */}
+          <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
+            <FontAwesome5 name="edit" size={14} color="transparent" />
+          </View>
+        </RowWithEdit>
+        {eastDouble && (
           <View style={{ marginTop: 8 }}>
-            <Label colors={colors}>Players</Label>
-            <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-              {[2, 3, 4].map((n) => (
-                <Seg key={n} selected={numPlayers === n} onPress={() => setNumPlayers(n)} colors={colors}>
-                  {n}
-                </Seg>
-              ))}
+            <Row colors={colors}>
+              <Label colors={colors} sub="Mark if you (the winner) are East">I Am East</Label>
+              <Switch 
+                value={isWinnerEast} 
+                onValueChange={setIsWinnerEast}
+                trackColor={{ false: colors.border, true: colors.gobutton }}
+                thumbColor={isWinnerEast ? colors.card : colors.textSecondary}
+              />
             </Row>
           </View>
-        </>
+        )}
+
+        {/* Custom Rules */}
+        <View style={{ marginTop: 16, paddingTop: 16, borderTopColor: colors.border, borderTopWidth: 1 }}>
+          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+            <Label colors={colors}>Custom Rules</Label>
+          </View>
+
+          {customRules.map((rule) => (
+            <View key={rule.id} style={{ marginBottom: 12, padding: 12, backgroundColor: colors.inputBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+              <Row colors={colors}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.labelText(colors)}>{rule.title}</Text>
+                  {rule.description && (
+                    <Text style={[styles.labelSubtext(colors), { marginTop: 4 }]}>{rule.description}</Text>
+                  )}
+                  <Text style={[styles.labelSubtext(colors), { marginTop: 2 }]}>
+                    {rule.type === 'multiplier' ? `×${rule.value}` : `+${rule.value} points`}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Switch 
+                    value={selectedCustomRuleIds.has(rule.id)} 
+                    onValueChange={(enabled) => {
+                      const newSet = new Set(selectedCustomRuleIds);
+                      if (enabled) {
+                        newSet.add(rule.id);
+                      } else {
+                        newSet.delete(rule.id);
+                      }
+                      setSelectedCustomRuleIds(newSet);
+                    }}
+                    trackColor={{ false: colors.border, true: colors.gobutton }}
+                    thumbColor={selectedCustomRuleIds.has(rule.id) ? colors.card : colors.textSecondary}
+                  />
+                  <TouchableOpacity
+                    onPress={async () => {
+                      Alert.alert(
+                        "Delete Custom Rule",
+                        `Are you sure you want to delete "${rule.title}"?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: async () => {
+                              await deleteCustomRule(rule.id);
+                              const updatedRules = await getCustomRules();
+                              setCustomRules(updatedRules);
+                              const newSet = new Set(selectedCustomRuleIds);
+                              newSet.delete(rule.id);
+                              setSelectedCustomRuleIds(newSet);
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                    style={{ padding: 8 }}
+                  >
+                    <FontAwesome5 name="trash" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </Row>
+            </View>
+          ))}
+
+          <TouchableOpacity
+            onPress={() => {
+              setNewCustomRuleTitle("");
+              setNewCustomRuleDescription("");
+              setNewCustomRuleType('multiplier');
+              setNewCustomRuleValue("");
+              setShowCustomRuleModal(true);
+            }}
+            style={[styles.addButton(colors), { marginTop: 8 }]}
+          >
+            <FontAwesome5 name="plus" size={16} color={colors.card} style={{ marginRight: 8 }} />
+            <Text style={styles.addButtonText(colors)}>Add Custom Rule</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Players */}
+      <View style={{ marginTop: 8 }}>
+        <Label colors={colors}>Players</Label>
+        <Row style={{ justifyContent: "flex-start" }} colors={colors}>
+          {[2, 3, 4].map((n) => (
+            <Seg key={n} selected={numPlayers === n} onPress={() => setNumPlayers(n)} colors={colors} theme={theme}>
+              {n}
+            </Seg>
+          ))}
+        </Row>
+      </View>
+      </>
       )}
 
       {/* Tournament Mode Controls */}
@@ -493,8 +731,8 @@ export default function ScoreCalculatorCard({
           <View style={{ marginTop: 4 }}>
             <Label colors={colors}>Win Type</Label>
             <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-              <Seg selected={winType === "self_pick"} onPress={() => setWinType("self_pick")} colors={colors}>Self-Pick</Seg>
-              <Seg selected={winType === "discard"} onPress={() => setWinType("discard")} colors={colors}>From Discard</Seg>
+              <Seg selected={winType === "self_pick"} onPress={() => setWinType("self_pick")} colors={colors} theme={theme}>Self-Pick</Seg>
+              <Seg selected={winType === "discard"} onPress={() => setWinType("discard")} colors={colors} theme={theme}>From Discard</Seg>
             </Row>
           </View>
 
@@ -523,7 +761,7 @@ export default function ScoreCalculatorCard({
             <Label colors={colors}>Winner</Label>
             <Row style={{ justifyContent: "flex-start" }} colors={colors}>
               {playerIds.map(id => (
-                <Seg key={id} selected={tournamentWinnerId === id} onPress={() => setTournamentWinnerId(id)} colors={colors}>{id}</Seg>
+                <Seg key={id} selected={tournamentWinnerId === id} onPress={() => setTournamentWinnerId(id)} colors={colors} theme={theme}>{id}</Seg>
               ))}
             </Row>
           </View>
@@ -533,7 +771,7 @@ export default function ScoreCalculatorCard({
               <Label colors={colors}>Discarder</Label>
               <Row style={{ justifyContent: "flex-start" }} colors={colors}>
                 {playerIds.filter(id => id !== tournamentWinnerId).map(id => (
-                  <Seg key={id} selected={tournamentDiscarderId === id} onPress={() => setTournamentDiscarderId(id)} colors={colors}>{id}</Seg>
+                  <Seg key={id} selected={tournamentDiscarderId === id} onPress={() => setTournamentDiscarderId(id)} colors={colors} theme={theme}>{id}</Seg>
                 ))}
               </Row>
             </View>
@@ -545,7 +783,7 @@ export default function ScoreCalculatorCard({
             </Label>
             <Row style={{ justifyContent: "flex-start" }} colors={colors}>
               {[0,1,2,3,4].map(n => (
-                <Seg key={n} selected={winnerExposureCount === n} onPress={() => setWinnerExposureCount(n as 0|1|2|3|4)} colors={colors}>
+                <Seg key={n} selected={winnerExposureCount === n} onPress={() => setWinnerExposureCount(n as 0|1|2|3|4)} colors={colors} theme={theme}>
                   {n}
                 </Seg>
               ))}
@@ -600,6 +838,85 @@ export default function ScoreCalculatorCard({
               thumbColor={deadS ? colors.card : colors.textSecondary}
             /></Row>
           </View>
+
+          {/* Custom Rules */}
+          <View style={{ marginTop: 16, paddingTop: 16, borderTopColor: colors.border, borderTopWidth: 1 }}>
+            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+              <Label colors={colors}>Custom Rules</Label>
+            </View>
+
+            {customRules.map((rule) => (
+              <View key={rule.id} style={{ marginBottom: 12, padding: 12, backgroundColor: colors.inputBackground, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                <Row colors={colors}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.labelText(colors)}>{rule.title}</Text>
+                    {rule.description && (
+                      <Text style={[styles.labelSubtext(colors), { marginTop: 4 }]}>{rule.description}</Text>
+                    )}
+                    <Text style={[styles.labelSubtext(colors), { marginTop: 2 }]}>
+                      {rule.type === 'multiplier' ? `×${rule.value}` : `+${rule.value} points`}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Switch 
+                      value={selectedCustomRuleIds.has(rule.id)} 
+                      onValueChange={(enabled) => {
+                        const newSet = new Set(selectedCustomRuleIds);
+                        if (enabled) {
+                          newSet.add(rule.id);
+                        } else {
+                          newSet.delete(rule.id);
+                        }
+                        setSelectedCustomRuleIds(newSet);
+                      }}
+                      trackColor={{ false: colors.border, true: colors.gobutton }}
+                      thumbColor={selectedCustomRuleIds.has(rule.id) ? colors.card : colors.textSecondary}
+                    />
+                    <TouchableOpacity
+                      onPress={async () => {
+                        Alert.alert(
+                          "Delete Custom Rule",
+                          `Are you sure you want to delete "${rule.title}"?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Delete",
+                              style: "destructive",
+                              onPress: async () => {
+                                await deleteCustomRule(rule.id);
+                                const updatedRules = await getCustomRules();
+                                setCustomRules(updatedRules);
+                                const newSet = new Set(selectedCustomRuleIds);
+                                newSet.delete(rule.id);
+                                setSelectedCustomRuleIds(newSet);
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                      style={{ padding: 8 }}
+                    >
+                      <FontAwesome5 name="trash" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                </Row>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={() => {
+                setNewCustomRuleTitle("");
+                setNewCustomRuleDescription("");
+                setNewCustomRuleType('multiplier');
+                setNewCustomRuleValue("");
+                setShowCustomRuleModal(true);
+              }}
+              style={[styles.addButton(colors), { marginTop: 8 }]}
+            >
+              <FontAwesome5 name="plus" size={16} color={colors.card} style={{ marginRight: 8 }} />
+              <Text style={styles.addButtonText(colors)}>+ Custom Rule</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
 
@@ -621,6 +938,28 @@ export default function ScoreCalculatorCard({
             {result.rule.misnamedJokerApplied && (
               <Text style={styles.resultText(colors)}>Misnamed Joker: Yes (discarder pays 4×, others pay nothing)</Text>
             )}
+            {(result.rule.doublesApplied ?? 0) > 0 && (
+              <Text style={styles.resultText(colors)}>
+                Doubles applied: {result.rule.doublesApplied} (×{Math.pow(2, result.rule.doublesApplied ?? 0)} multiplier)
+              </Text>
+            )}
+            {result.rule.eastDoubleApplied && (
+              <Text style={styles.resultText(colors)}>East's Double: Applied (East pays/receives double)</Text>
+            )}
+            {selectedCustomRuleIds.size > 0 && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.resultText(colors)}>Custom Rules Applied:</Text>
+                {Array.from(selectedCustomRuleIds).map(id => {
+                  const rule = customRules.find(r => r.id === id);
+                  if (!rule) return null;
+                  return (
+                    <Text key={id} style={[styles.resultText(colors), { marginLeft: 8, marginTop: 2 }]}>
+                      • {rule.title}: {rule.type === 'multiplier' ? `×${rule.value}` : `+${rule.value} points`}
+                    </Text>
+                  );
+                })}
+              </View>
+            )}
 
             {/* No-Exposures description */}
             {result.appliedNoExposureBonus && result.appliedNoExposureBonus.applied && (
@@ -631,32 +970,61 @@ export default function ScoreCalculatorCard({
 
             {/* Per-payer */}
             <View style={styles.paymentSection}>
-              {winType === "discard" ? (
+              {/* Show individual payer breakdown when East's double is enabled and winner is not East */}
+              {eastDouble && !isWinnerEast && Object.keys(result.payerMap || {}).length > 0 ? (
                 <>
-                  <Text style={styles.paymentText(colors)}>
-                    Discarder pays: {displayMode === "currency" 
-                      ? `$${((result.perLoserAmounts.discarder ?? 0) / 100).toFixed(2)}`
-                      : `${result.perLoserAmounts.discarder ?? 0} pts`}
-                  </Text>
-                  <Text style={styles.paymentText(colors)}>
-                    Each other player pays: {displayMode === "currency"
-                      ? `$${((result.perLoserAmounts.others ?? 0) / 100).toFixed(2)}`
-                      : `${result.perLoserAmounts.others ?? 0} pts`}
-                  </Text>
+                  <Text style={styles.payerMapTitle(colors)}>Per Player Payout:</Text>
+                  {Object.entries(result.payerMap)
+                    .filter(([pid, amt]) => pid !== winnerId && amt > 0) // Only show payers, not the winner
+                    .sort(([pidA], [pidB]) => {
+                      // Sort: East first, then others
+                      const isEastA = pidA === "E" || pidA === "East";
+                      const isEastB = pidB === "E" || pidB === "East";
+                      if (isEastA && !isEastB) return -1;
+                      if (!isEastA && isEastB) return 1;
+                      return pidA.localeCompare(pidB);
+                    })
+                    .map(([pid, amt]) => {
+                      const isEast = pid === "E" || pid === "East";
+                      return (
+                        <Text key={pid} style={styles.paymentText(colors)}>
+                          {displayMode === "currency"
+                            ? `${isEast ? "East" : pid} pays: $${(amt / 100).toFixed(2)}${isEast ? " (2× standard)" : ""}`
+                            : `${isEast ? "East" : pid}: -${amt} pts${isEast ? " (2× standard)" : ""}`}
+                        </Text>
+                      );
+                    })}
                 </>
               ) : (
-                <Text style={styles.paymentText(colors)}>
-                  Each opponent pays: {displayMode === "currency"
-                    ? `$${((result.perLoserAmounts.others ?? 0) / 100).toFixed(2)}`
-                    : `${result.perLoserAmounts.others ?? 0} pts`}
-                </Text>
+                <>
+                  {winType === "discard" ? (
+                    <>
+                      <Text style={styles.paymentText(colors)}>
+                        {displayMode === "currency" 
+                          ? `Discarder pays: $${((result.perLoserAmounts.discarder ?? 0) / 100).toFixed(2)}`
+                          : `Discarder: -${result.perLoserAmounts.discarder ?? 0} pts`}
+                      </Text>
+                      <Text style={styles.paymentText(colors)}>
+                        {displayMode === "currency"
+                          ? `Each other player pays: $${((result.perLoserAmounts.others ?? 0) / 100).toFixed(2)}`
+                          : `Each opponent: -${result.perLoserAmounts.others ?? 0} pts`}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={styles.paymentText(colors)}>
+                      {displayMode === "currency"
+                        ? `Each opponent pays: $${((result.perLoserAmounts.others ?? 0) / 100).toFixed(2)}`
+                        : `Each opponent: -${result.perLoserAmounts.others ?? 0} pts`}
+                    </Text>
+                  )}
+                </>
               )}
-              {result.jokerlessPointsBonus && result.jokerlessPointsBonus > 0 && (
+              {(result.jokerlessPointsBonus ?? 0) > 0 && (
                 <Text style={styles.resultText(colors)}>
                   Jokerless bonus: +{result.jokerlessPointsBonus} {displayMode === "currency" ? "cents" : "pts"}
                 </Text>
               )}
-              {result.exposurePenalty && result.exposurePenalty > 0 && (
+              {(result.exposurePenalty ?? 0) > 0 && (
                 <Text style={styles.resultText(colors)}>
                   Exposure penalty: -{result.exposurePenalty} {displayMode === "currency" ? "cents" : "pts"}
                 </Text>
@@ -672,27 +1040,14 @@ export default function ScoreCalculatorCard({
             {mode === "standard" && (
               <View style={[styles.resultsSection(colors), { marginTop: 20 }]}>
                 <Label colors={colors}>Save This Hand</Label>
-                <Row colors={colors}>
-                  <Label colors={colors} sub="Were you the winner of this hand?">I Was the Winner</Label>
-                  <Switch 
-                    value={isWinner} 
-                    onValueChange={setIsWinner}
-                    trackColor={{ false: colors.border, true: colors.gobutton }}
-                    thumbColor={isWinner ? colors.card : colors.textSecondary}
-                  />
-                </Row>
                 <TouchableOpacity
                   style={[styles.saveButton(colors), saveSuccess && styles.saveButtonSuccess(colors)]}
                   onPress={async () => {
-                  if (!selectedCategoryId || !selectedHand) {
-                    Alert.alert("Hand Selection Required", "Please select a category and hand number to save.");
-                    return;
-                  }
                     try {
                       const handToSave: SavedHand = {
                         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                         timestamp: Date.now(),
-                        handName: handName.trim(),
+                        handName: handName.trim() || "Custom Hand",
                         basePoints: Number(basePoints || 0),
                         winType,
                         jokerless,
@@ -701,13 +1056,10 @@ export default function ScoreCalculatorCard({
                         totalToWinner: result.totalToWinner,
                         displayMode,
                         mode,
-                        totalExposuresAtTable: Number(totalExposuresAtTable || 0),
-                        jokerlessAsPoints,
-                        jokerlessBonusPoints: Number(jokerlessBonusPoints || 10),
                         exposurePenalty: result.exposurePenalty,
                         winnerExposureCount: Number(standardWinnerExposureCount || 0),
                         perLoserAmounts: result.perLoserAmounts,
-                        isWinner,
+                        isWinner: false,
                       };
                       await saveHand(handToSave);
                       setSaveSuccess(true);
@@ -732,8 +1084,8 @@ export default function ScoreCalculatorCard({
               </View>
             )}
 
-            {/* Optional: show payer map if IDs were passed */}
-            {Object.keys(result.payerMap || {}).length > 0 && (
+            {/* Optional: show payer map if IDs were passed and not already shown in main breakdown */}
+            {Object.keys(result.payerMap || {}).length > 0 && !(eastDouble && !isWinnerEast) && (
               <View style={styles.payerMapSection}>
                 <Text style={styles.payerMapTitle(colors)}>Per Player</Text>
                 {Object.entries(result.payerMap).map(([pid, amt]) => (
@@ -917,6 +1269,197 @@ export default function ScoreCalculatorCard({
         </View>
       </TouchableOpacity>
     </Modal>
+
+    {/* Custom Rule Modal */}
+    <Modal
+      visible={showCustomRuleModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowCustomRuleModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlayBottom(colors)}
+        activeOpacity={1}
+        onPress={() => setShowCustomRuleModal(false)}
+      >
+        <View style={styles.modalContent(colors)}>
+          <View style={styles.modalHeader(colors)}>
+            <Text style={styles.modalTitle(colors)}>Add Custom Rule</Text>
+            <TouchableOpacity onPress={() => setShowCustomRuleModal(false)}>
+              <FontAwesome5 name="times" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView} contentContainerStyle={{ padding: 16 }}>
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>Title</Label>
+              <TextInput
+                value={newCustomRuleTitle}
+                onChangeText={setNewCustomRuleTitle}
+                placeholder="e.g., Special Bonus"
+                placeholderTextColor={colors.textSecondary}
+                style={styles.textInput(colors)}
+              />
+            </View>
+
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>Description</Label>
+              <TextInput
+                value={newCustomRuleDescription}
+                onChangeText={setNewCustomRuleDescription}
+                placeholder="Optional description"
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.textInput(colors), { minHeight: 80, textAlignVertical: 'top' }]}
+                multiline
+              />
+            </View>
+
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>Type</Label>
+              <Row style={{ justifyContent: "flex-start" }} colors={colors}>
+                <Seg 
+                  selected={newCustomRuleType === "multiplier"} 
+                  onPress={() => setNewCustomRuleType("multiplier")} 
+                  colors={colors}
+                  theme={theme}
+                >
+                  Multiplier (×)
+                </Seg>
+                <Seg 
+                  selected={newCustomRuleType === "points"} 
+                  onPress={() => setNewCustomRuleType("points")} 
+                  colors={colors}
+                  theme={theme}
+                >
+                  Points (+)
+                </Seg>
+              </Row>
+            </View>
+
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>
+                {newCustomRuleType === "multiplier" ? "Multiplier Value" : "Points Value"}
+              </Label>
+              <TextInput
+                keyboardType="decimal-pad"
+                value={newCustomRuleValue}
+                onChangeText={setNewCustomRuleValue}
+                placeholder={newCustomRuleType === "multiplier" ? "e.g., 2" : "e.g., 10"}
+                placeholderTextColor={colors.textSecondary}
+                style={styles.textInput(colors)}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.saveButton(colors), { marginTop: 8 }]}
+              onPress={async () => {
+                if (!newCustomRuleTitle.trim()) {
+                  Alert.alert("Error", "Please enter a title for the custom rule.");
+                  return;
+                }
+                if (!newCustomRuleValue || Number(newCustomRuleValue) <= 0) {
+                  Alert.alert("Error", "Please enter a valid value greater than 0.");
+                  return;
+                }
+
+                const newRule: CustomRule = {
+                  id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                  title: newCustomRuleTitle.trim(),
+                  description: newCustomRuleDescription.trim(),
+                  type: newCustomRuleType,
+                  value: Number(newCustomRuleValue),
+                  createdAt: Date.now()
+                };
+
+                await saveCustomRule(newRule);
+                const updatedRules = await getCustomRules();
+                setCustomRules(updatedRules);
+                setNewCustomRuleTitle("");
+                setNewCustomRuleDescription("");
+                setNewCustomRuleType('multiplier');
+                setNewCustomRuleValue("");
+                setShowCustomRuleModal(false);
+              }}
+            >
+              <FontAwesome5 name="save" size={16} color={colors.card} style={{ marginRight: 8 }} />
+              <Text style={styles.saveButtonText(colors)}>Save Custom Rule</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+
+    {/* Edit Rule Modal */}
+    <Modal
+      visible={showEditRuleModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowEditRuleModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlayBottom(colors)}
+        activeOpacity={1}
+        onPress={() => setShowEditRuleModal(false)}
+      >
+        <View style={styles.modalContent(colors)}>
+          <View style={styles.modalHeader(colors)}>
+            <Text style={styles.modalTitle(colors)}>
+              Edit {editingRuleKey === 'jokerless' ? 'Jokerless' :
+                    editingRuleKey === 'misnamedJoker' ? 'Mis-named Joker' :
+                    editingRuleKey === 'lastTileFromWall' ? 'Last Tile from Wall' :
+                    editingRuleKey === 'lastTileClaim' ? 'Last Tile Claim' :
+                    editingRuleKey === 'robbingTheJoker' ? 'Robbing the Joker' :
+                    editingRuleKey === 'noExposures' ? 'No Exposures (Fully Concealed)' : 'Rule'}
+            </Text>
+            <TouchableOpacity onPress={() => setShowEditRuleModal(false)}>
+              <FontAwesome5 name="times" size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScrollView} contentContainerStyle={{ padding: 16 }}>
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>Type</Label>
+              <Row style={{ justifyContent: "flex-start" }} colors={colors}>
+                <Seg 
+                  selected={editRuleType === "multiplier"} 
+                  onPress={() => setEditRuleType("multiplier")} 
+                  colors={colors}
+                  theme={theme}
+                >
+                  Multiplier (×)
+                </Seg>
+                <Seg 
+                  selected={editRuleType === "points"} 
+                  onPress={() => setEditRuleType("points")} 
+                  colors={colors}
+                  theme={theme}
+                >
+                  Points (+)
+                </Seg>
+              </Row>
+            </View>
+
+            <View style={{ marginBottom: 16 }}>
+              <Label colors={colors}>{editRuleType === "multiplier" ? "Multiplier Value" : "Points Value"}</Label>
+              <TextInput
+                keyboardType="decimal-pad"
+                value={editRuleValue}
+                onChangeText={setEditRuleValue}
+                placeholder={editRuleType === "multiplier" ? "e.g., 2" : "e.g., 10"}
+                placeholderTextColor={colors.textSecondary}
+                style={styles.textInput(colors)}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.saveButton(colors), { marginTop: 8 }]}
+              onPress={handleSaveEditRule}
+            >
+              <FontAwesome5 name="save" size={16} color={colors.card} style={{ marginRight: 8 }} />
+              <Text style={styles.saveButtonText(colors)}>Save</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
     </>
   );
 }
@@ -1038,9 +1581,9 @@ const styles = {
   segText: (colors: any) => ({
     fontWeight: '500' as const,
   }),
-  segTextSelected: (colors: any) => ({
+  segTextSelected: (colors: any, theme?: 'light' | 'dark') => ({
     fontWeight: '700' as const,
-    color: colors.primary,
+    color: theme === 'dark' ? '#FFFFFF' : colors.primary, // Brighter white for dark mode contrast
   }),
   segTextUnselected: (colors: any) => ({
     color: colors.text,
@@ -1072,7 +1615,7 @@ const styles = {
     marginBottom: 6,
   }),
   totalText: (colors: any) => ({
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '700' as const,
     marginTop: 8,
     color: colors.primary,
@@ -1140,6 +1683,20 @@ const styles = {
     color: colors.card,
     fontSize: 16,
     fontWeight: '700' as const,
+  }),
+  addButton: (colors: any) => ({
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  }),
+  addButtonText: (colors: any) => ({
+    color: colors.card,
+    fontSize: 16,
+    fontWeight: '600' as const,
   }),
   dropdownButton: (colors: any) => ({
     flexDirection: 'row' as const,

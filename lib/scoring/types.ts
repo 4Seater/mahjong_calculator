@@ -17,12 +17,35 @@ export interface ScoreInput {
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
-  // New modifiers
-  totalExposuresAtTable?: number; // For discard payout rule (0-2 vs 3+)
+
   jokerlessBonusPoints?: number; // Optional jokerless bonus in points (default 10)
   jokerlessAsPoints?: boolean; // If true, jokerless adds points instead of multiplier
   exposurePenaltyPerExposure?: number; // Optional exposure penalty (default 0, range 5-10)
   winnerExposureCount?: number; // Winner's exposure count for penalty calculation
+  
+  // Additional scoring rules (doubles)
+  lastTileFromWall?: boolean; // Last tile taken from wall (doubles score)
+  lastTileClaim?: boolean; // Last tile discarded in the game (doubles score)
+  robbingTheJoker?: boolean; // Robbing a tile from a player's exposure (doubles score)
+  fourFlowers?: boolean; // Four Flowers in hand (doubles score, only if card year rules apply)
+  eastDouble?: boolean; // East's double payout (East pays or receives double)
+  isWinnerEast?: boolean; // Explicitly mark if the winner is East (for East's double calculation)
+  numDoubles?: number; // Total number of doubles (each doubles the score)
+  customMultipliers?: {
+    jokerless?: number; // Custom multiplier for jokerless (default 2 for self-pick, 4 for discard)
+    misnamedJoker?: number; // Custom multiplier for mis-named joker (default 4)
+    lastTileFromWall?: number; // Custom multiplier for last tile from wall (default 2)
+    lastTileClaim?: number; // Custom multiplier for last tile claim (default 2)
+    robbingTheJoker?: number; // Custom multiplier for robbing the joker (default 2)
+  };
+  customPoints?: {
+    jokerless?: number; // Custom points bonus for jokerless (when using points instead of multiplier)
+  };
+  customRules?: Array<{
+    id: string;
+    type: 'multiplier' | 'points';
+    value: number;
+  }>; // Custom rules applied
 }
 
 export interface ScoreResult {
@@ -32,6 +55,8 @@ export interface ScoreResult {
     otherMultiplier?: number;
     jokerlessApplied: boolean;
     misnamedJokerApplied?: boolean;
+    doublesApplied?: number; // Total number of doubles applied
+    eastDoubleApplied?: boolean; // Whether East's double is applied
   };
   perLoserAmounts: { discarder?: number; others?: number };
   totalToWinner: number;
@@ -76,6 +101,13 @@ export interface TournamentInput {
   // Case B: False MJ & exactly 1 player kept hand intact => that one gets +10, others 0
   falseMahjongAllExposed?: boolean;  // if true => all 0
   falseMahjongOneIntactId?: string | null; // that player gets +10, others 0
+  
+  // Custom rules
+  customRules?: Array<{
+    id: string;
+    type: 'multiplier' | 'points';
+    value: number;
+  }>; // Custom rules applied
 }
 
 export interface TournamentResult {

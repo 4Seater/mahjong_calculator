@@ -36,9 +36,9 @@ function AppContent() {
           <FontAwesome5 
             name="calculator" 
             size={20} 
-            color={currentScreen === 'calculator' ? colors.primary : colors.textSecondary} 
+            color={currentScreen === 'calculator' ? (theme === 'dark' ? '#FFFFFF' : colors.primary) : colors.textSecondary} 
           />
-          <Text style={[styles.tabText(colors), currentScreen === 'calculator' && styles.tabTextActive(colors)]}>
+          <Text style={[styles.tabText(colors), currentScreen === 'calculator' && styles.tabTextActive(colors, theme)]}>
             Calculator
           </Text>
         </TouchableOpacity>
@@ -49,9 +49,9 @@ function AppContent() {
           <FontAwesome5 
             name="chart-bar" 
             size={20} 
-            color={currentScreen === 'stats' ? colors.primary : colors.textSecondary} 
+            color={currentScreen === 'stats' ? (theme === 'dark' ? '#FFFFFF' : colors.primary) : colors.textSecondary} 
           />
-          <Text style={[styles.tabText(colors), currentScreen === 'stats' && styles.tabTextActive(colors)]}>
+          <Text style={[styles.tabText(colors), currentScreen === 'stats' && styles.tabTextActive(colors, theme)]}>
             Statistics
           </Text>
         </TouchableOpacity>
@@ -108,8 +108,8 @@ const styles = {
     fontWeight: '600' as const,
     color: colors.textSecondary,
   }),
-  tabTextActive: (colors: any) => ({
-    color: colors.primary,
+  tabTextActive: (colors: any, theme?: 'light' | 'dark') => ({
+    color: theme === 'dark' ? '#FFFFFF' : colors.primary,
     fontWeight: '700' as const,
   }),
 };
