@@ -490,7 +490,7 @@ export default function ScoreCalculatorCard({
             editKey="noExposures"
           >
             <View style={{ flex: 1 }}>
-              <Label colors={colors} sub={`Award for a fully concealed win (${customRuleValues.noExposures?.type === 'points' ? '+' : '×'}${customRuleValues.noExposures?.value || 2}).`}>
+              <Label colors={colors} sub="Award for a fully concealed win">
                 No Exposures (Fully Concealed)
               </Label>
             </View>
@@ -525,7 +525,7 @@ export default function ScoreCalculatorCard({
             <View style={{ marginTop: 8, padding: 12, backgroundColor: colors.inputBackground, borderRadius: 8 }}>
               {/* Winner Exposure Count (for exposure penalty) */}
               <View style={{ marginBottom: 12 }}>
-                <Label colors={colors} sub="Winner's exposure count (for exposure penalty calculation)">Winner's Exposure Count</Label>
+                <Label colors={colors} sub="Number of exposures on winner's rack (ie, number of pungs, kongs, and quints not individual tiles)">Winner's Exposure Count</Label>
                 <TextInput
                   keyboardType="number-pad"
                   value={standardWinnerExposureCount}
@@ -705,7 +705,7 @@ export default function ScoreCalculatorCard({
             style={[styles.addButton(colors), { marginTop: 8 }]}
           >
             <FontAwesome5 name="plus" size={16} color={colors.card} style={{ marginRight: 8 }} />
-            <Text style={styles.addButtonText(colors)}>Add Custom Rule</Text>
+            <Text style={styles.addButtonText(colors, theme)}>Add Custom Rule</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -914,7 +914,7 @@ export default function ScoreCalculatorCard({
               style={[styles.addButton(colors), { marginTop: 8 }]}
             >
               <FontAwesome5 name="plus" size={16} color={colors.card} style={{ marginRight: 8 }} />
-              <Text style={styles.addButtonText(colors)}>+ Custom Rule</Text>
+              <Text style={styles.addButtonText(colors, theme)}>+ Custom Rule</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -973,27 +973,48 @@ export default function ScoreCalculatorCard({
               {/* Show individual payer breakdown when East's double is enabled and winner is not East */}
               {eastDouble && !isWinnerEast && Object.keys(result.payerMap || {}).length > 0 ? (
                 <>
-                  <Text style={styles.payerMapTitle(colors)}>Per Player Payout:</Text>
-                  {Object.entries(result.payerMap)
-                    .filter(([pid, amt]) => pid !== winnerId && amt > 0) // Only show payers, not the winner
-                    .sort(([pidA], [pidB]) => {
-                      // Sort: East first, then others
-                      const isEastA = pidA === "E" || pidA === "East";
-                      const isEastB = pidB === "E" || pidB === "East";
-                      if (isEastA && !isEastB) return -1;
-                      if (!isEastA && isEastB) return 1;
-                      return pidA.localeCompare(pidB);
-                    })
-                    .map(([pid, amt]) => {
-                      const isEast = pid === "E" || pid === "East";
-                      return (
-                        <Text key={pid} style={styles.paymentText(colors)}>
-                          {displayMode === "currency"
-                            ? `${isEast ? "East" : pid} pays: $${(amt / 100).toFixed(2)}${isEast ? " (2× standard)" : ""}`
-                            : `${isEast ? "East" : pid}: -${amt} pts${isEast ? " (2× standard)" : ""}`}
-                        </Text>
-                      );
-                    })}
+                  {(() => {
+                    // Get all payer entries (excluding winner)
+                    const allPayerEntries = Object.entries(result.payerMap || {})
+                      .filter(([pid, amt]) => pid !== winnerId && amt > 0);
+                    
+                    // Find East entry - check for "E" or "East" in the payerMap keys
+                    const eastEntry = allPayerEntries.find(([pid]) => 
+                      pid === "E" || pid === "East"
+                    );
+                    
+                    // Get other players (non-East)
+                    const otherEntries = allPayerEntries.filter(([pid]) => 
+                      pid !== "E" && pid !== "East"
+                    );
+                    
+                    // Get the standard amount (from first other player, or calculate from East if needed)
+                    const standardAmount = otherEntries.length > 0 
+                      ? otherEntries[0][1] 
+                      : (eastEntry ? eastEntry[1] / 2 : 0);
+                    
+                    return (
+                      <>
+                        {/* East pays section - always show if East is in payerMap */}
+                        {eastEntry && (
+                          <Text style={styles.paymentText(colors)}>
+                            {displayMode === "currency"
+                              ? `East pays: $${(eastEntry[1] / 100).toFixed(2)} (2× standard)`
+                              : `East: -${eastEntry[1]} pts (2× standard)`}
+                          </Text>
+                        )}
+                        
+                        {/* Opponents pay section */}
+                        {otherEntries.length > 0 && (
+                          <Text style={styles.paymentText(colors)}>
+                            {displayMode === "currency"
+                              ? `Each opponent pays: $${(standardAmount / 100).toFixed(2)}`
+                              : `Each opponent: -${standardAmount} pts`}
+                          </Text>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
                 <>
@@ -1029,7 +1050,7 @@ export default function ScoreCalculatorCard({
                   Exposure penalty: -{result.exposurePenalty} {displayMode === "currency" ? "cents" : "pts"}
                 </Text>
               )}
-              <Text style={styles.totalText(colors)}>
+              <Text style={styles.totalText(colors, theme)}>
                 Total to Winner: {displayMode === "currency"
                   ? `$${(result.totalToWinner / 100).toFixed(2)}`
                   : `${result.totalToWinner} pts`}
@@ -1039,7 +1060,6 @@ export default function ScoreCalculatorCard({
             {/* Save Hand Section - Only for Standard Mode */}
             {mode === "standard" && (
               <View style={[styles.resultsSection(colors), { marginTop: 20 }]}>
-                <Label colors={colors}>Save This Hand</Label>
                 <TouchableOpacity
                   style={[styles.saveButton(colors), saveSuccess && styles.saveButtonSuccess(colors)]}
                   onPress={async () => {
@@ -1059,7 +1079,7 @@ export default function ScoreCalculatorCard({
                         exposurePenalty: result.exposurePenalty,
                         winnerExposureCount: Number(standardWinnerExposureCount || 0),
                         perLoserAmounts: result.perLoserAmounts,
-                        isWinner: false,
+                        isWinner: true, // All saved hands are wins for the user
                       };
                       await saveHand(handToSave);
                       setSaveSuccess(true);
@@ -1077,7 +1097,7 @@ export default function ScoreCalculatorCard({
                     color={colors.card} 
                     style={{ marginRight: 8 }} 
                   />
-                  <Text style={styles.saveButtonText(colors)}>
+                  <Text style={styles.saveButtonText(colors, theme)}>
                     {saveSuccess ? "Saved!" : "Save Hand"}
                   </Text>
                 </TouchableOpacity>
@@ -1381,7 +1401,7 @@ export default function ScoreCalculatorCard({
               }}
             >
               <FontAwesome5 name="save" size={16} color={colors.card} style={{ marginRight: 8 }} />
-              <Text style={styles.saveButtonText(colors)}>Save Custom Rule</Text>
+              <Text style={styles.saveButtonText(colors, theme)}>Save Custom Rule</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1454,7 +1474,7 @@ export default function ScoreCalculatorCard({
               onPress={handleSaveEditRule}
             >
               <FontAwesome5 name="save" size={16} color={colors.card} style={{ marginRight: 8 }} />
-              <Text style={styles.saveButtonText(colors)}>Save</Text>
+              <Text style={styles.saveButtonText(colors, theme)}>Save</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -1614,11 +1634,11 @@ const styles = {
     color: colors.text,
     marginBottom: 6,
   }),
-  totalText: (colors: any) => ({
+  totalText: (colors: any, theme?: 'light' | 'dark') => ({
     fontSize: 18,
     fontWeight: '700' as const,
     marginTop: 8,
-    color: colors.primary,
+    color: theme === 'dark' ? '#FFFFFF' : colors.primary, // White for high contrast in dark mode
   }),
   payerMapSection: {
     marginTop: 12,
@@ -1679,8 +1699,8 @@ const styles = {
   saveButtonSuccess: (colors: any) => ({
     backgroundColor: '#4CAF50',
   }),
-  saveButtonText: (colors: any) => ({
-    color: colors.card,
+  saveButtonText: (colors: any, theme?: 'light' | 'dark') => ({
+    color: theme === 'dark' ? '#FFFFFF' : colors.card, // White text in dark mode
     fontSize: 16,
     fontWeight: '700' as const,
   }),
@@ -1693,8 +1713,8 @@ const styles = {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   }),
-  addButtonText: (colors: any) => ({
-    color: colors.card,
+  addButtonText: (colors: any, theme?: 'light' | 'dark') => ({
+    color: theme === 'dark' ? '#FFFFFF' : colors.card, // White text in dark mode
     fontSize: 16,
     fontWeight: '600' as const,
   }),
