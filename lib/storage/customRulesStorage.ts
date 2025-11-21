@@ -14,7 +14,17 @@ const CUSTOM_RULES_STORAGE_KEY = '@mahjong_calculator_custom_rules';
 export const saveCustomRule = async (rule: CustomRule): Promise<void> => {
   try {
     const existingRules = await getCustomRules();
-    const updatedRules = [...existingRules, rule];
+    // Check if rule with same ID already exists (prevent duplicates)
+    const existingIndex = existingRules.findIndex(r => r.id === rule.id);
+    let updatedRules: CustomRule[];
+    if (existingIndex >= 0) {
+      // Update existing rule
+      updatedRules = [...existingRules];
+      updatedRules[existingIndex] = rule;
+    } else {
+      // Add new rule
+      updatedRules = [...existingRules, rule];
+    }
     await AsyncStorage.setItem(CUSTOM_RULES_STORAGE_KEY, JSON.stringify(updatedRules));
   } catch (error) {
     console.error('Error saving custom rule:', error);

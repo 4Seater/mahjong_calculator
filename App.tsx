@@ -4,10 +4,11 @@ import { SafeAreaView, StyleSheet, View, TouchableOpacity, Text } from 'react-na
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import ScoreCalculatorCard from './components/ScoreCalculatorCard';
 import StatsScreen from './components/StatsScreen';
+import GameBasicsScreen from './components/GameBasicsScreen';
 import { getColors } from './constants/colors';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-type Screen = 'calculator' | 'stats';
+type Screen = 'calculator' | 'stats' | 'basics';
 
 function AppContent() {
   const { theme } = useTheme();
@@ -55,13 +56,28 @@ function AppContent() {
             Statistics
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab(colors), currentScreen === 'basics' && styles.tabActive(colors)]}
+          onPress={() => handleScreenChange('basics')}
+        >
+          <FontAwesome5 
+            name="book" 
+            size={20} 
+            color={currentScreen === 'basics' ? (theme === 'dark' ? '#FFFFFF' : colors.primary) : colors.textSecondary} 
+          />
+          <Text style={[styles.tabText(colors), currentScreen === 'basics' && styles.tabTextActive(colors, theme)]}>
+            Basics
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Screen Content */}
       {currentScreen === 'calculator' ? (
         <ScoreCalculatorCard />
-      ) : (
+      ) : currentScreen === 'stats' ? (
         <StatsScreen refreshTrigger={statsRefreshTrigger} />
+      ) : (
+        <GameBasicsScreen />
       )}
     </SafeAreaView>
   );

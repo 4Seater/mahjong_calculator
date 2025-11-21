@@ -11,6 +11,7 @@ const lightColors = {
   inputBackground: '#FAFAFA',
   gobutton: '#00C2A8',
   shadow: '#000000',
+  clearButton: '#f26d66',
 };
 
 const darkColors = {
@@ -24,6 +25,7 @@ const darkColors = {
   inputBackground: '#2A2A2A',
   gobutton: '#00C2A8',
   shadow: '#000000',
+  clearButton: '#f26d66',
 };
 
 export const getColors = (theme: Theme) => {
