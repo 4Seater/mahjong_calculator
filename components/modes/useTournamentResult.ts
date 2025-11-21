@@ -67,8 +67,27 @@ export function useTournamentResult({
       deadPlayerIds: dead,
       customRules: Array.from(selectedCustomRuleIds).map(id => {
         const rule = customRules.find(r => r.id === id);
-        return rule ? { id: rule.id, type: rule.type, value: rule.value } : null;
-      }).filter(Boolean) as Array<{ id: string; type: 'multiplier' | 'points'; value: number }>
+        if (!rule) return null;
+        
+        // Return rule in new format (winnerBonus, discarderPenalty, allPlayerPenalty)
+        // The scoring engine handles both new and legacy formats
+        return {
+          id: rule.id,
+          winnerBonus: rule.winnerBonus,
+          discarderPenalty: rule.discarderPenalty,
+          allPlayerPenalty: rule.allPlayerPenalty,
+          // Legacy format support
+          type: rule.type,
+          value: rule.value,
+        };
+      }).filter(Boolean) as Array<{
+        id: string;
+        winnerBonus?: { type: 'points' | 'multiplier'; value: number };
+        discarderPenalty?: { enabled: boolean; type: 'points' | 'multiplier'; value: number };
+        allPlayerPenalty?: { enabled: boolean; type: 'points' | 'multiplier'; value: number };
+        type?: 'multiplier' | 'points' | 'opponentDeduction' | 'discarderDeduction';
+        value?: number;
+      }>
     });
   }, [
     mode, basePoints, winType, tournamentWinnerId, tournamentDiscarderId,

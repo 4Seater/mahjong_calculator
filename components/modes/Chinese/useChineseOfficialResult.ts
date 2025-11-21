@@ -19,7 +19,7 @@ interface UseChineseOfficialResultParams {
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
-  onOptimalResultChange: (result: ScoringOutcome | null) => void;
+  onOptimalResultChange?: (result: ScoringOutcome | null) => void;
   onDetectedFanIdsChange: (fanIds: string[]) => void;
   onSelectedFansChange: (fans: Set<string>) => void;
 }
@@ -90,7 +90,7 @@ export function useChineseOfficialResult({
         seatWindPungPresent: seatWindPung,
       });
       
-      onOptimalResultChange(outcome);
+      onOptimalResultChange?.(outcome);
       
       // Convert to ChineseOfficialResult format
       const payerMap: Record<string, number> = {};
@@ -143,7 +143,6 @@ export function useChineseOfficialResult({
     discarderId,
     winnerId,
     otherPlayerIds,
-    onOptimalResultChange,
   ]);
 
   return result;

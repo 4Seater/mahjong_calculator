@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from '../ScoreCalculatorCard.styles';
+import { styles } from '../../ScoreCalculatorCard.styles';
 import { saveHand } from '@/lib/storage/handStorage';
 import type { SavedHand } from '@/lib/types/game';
 import type { ScoreResult, WinType } from '@/lib/scoring/types';

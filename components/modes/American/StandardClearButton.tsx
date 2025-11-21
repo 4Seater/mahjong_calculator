@@ -2,23 +2,23 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from '../ScoreCalculatorCard.styles';
+import { styles } from '../../ScoreCalculatorCard.styles';
 
-interface ChineseOfficialClearButtonProps {
+interface StandardClearButtonProps {
   theme: 'light' | 'dark';
   onClear: () => void;
 }
 
-export default function ChineseOfficialClearButton({
+export default function StandardClearButton({
   theme,
   onClear,
-}: ChineseOfficialClearButtonProps) {
+}: StandardClearButtonProps) {
   const colors = getColors(theme);
 
   const handleClear = () => {
     Alert.alert(
       "Clear All",
-      "Are you sure you want to clear all Chinese Official calculator entries?",
+      "Are you sure you want to clear all calculator entries?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -26,7 +26,7 @@ export default function ChineseOfficialClearButton({
           style: "destructive",
           onPress: () => {
             onClear();
-            Alert.alert("Cleared", "All Chinese Official calculator entries have been reset.");
+            Alert.alert("Cleared", "All calculator entries have been reset.");
           },
         },
       ]
@@ -34,7 +34,7 @@ export default function ChineseOfficialClearButton({
   };
 
   return (
-    <View style={{ marginTop: 20 }}>
+    <View>
       <TouchableOpacity
         style={[styles.clearButton(colors), { marginTop: 12 }]}
         onPress={handleClear}

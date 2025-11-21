@@ -25,7 +25,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#4A90E2"
-      }
+      },
+      "package": "com.mahjongcalculator.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +35,9 @@
       "eas": {
         "projectId": "8dccae00-1fcf-4b61-b745-b8acf6a6fbb6"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

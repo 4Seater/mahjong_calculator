@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Switch, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import type { Hand } from '@/lib/scoring/chineseOfficial/tiles';
-import { Row, Label } from '../shared/CalculatorHelpers';
+import { Row, Label } from '../../shared/CalculatorHelpers';
 
 interface ChineseOfficialFlowerPointsProps {
   flowerCount: string;

@@ -2,10 +2,10 @@ import React from 'react';
 import { View, Text, TextInput, Switch } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from '../ScoreCalculatorCard.styles';
-import { Row, Label, Seg, RowWithEdit } from '../shared/CalculatorHelpers';
+import { styles } from '../../ScoreCalculatorCard.styles';
+import { Row, Label, Seg, RowWithEdit } from '../../shared/CalculatorHelpers';
 import type { WinType } from '@/lib/scoring/types';
-import CustomRulesSection from '../CustomRulesSection';
+import CustomRulesSection from '../../CustomRulesSection';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 
 interface StandardModeControlsProps {

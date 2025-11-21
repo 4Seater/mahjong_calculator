@@ -28,10 +28,10 @@ export default function ModeSelectorModal({
     onClose();
   };
 
-  const modes: { id: CalculatorMode; label: string }[] = [
+  const modes: { id: CalculatorMode; label: string; disabled?: boolean }[] = [
     { id: 'standard', label: 'Standard (NMJL)' },
     { id: 'tournament', label: 'Tournament' },
-    { id: 'chineseOfficial', label: 'Chinese Official' },
+    { id: 'chineseOfficial', label: 'Chinese Official', disabled: true },
   ];
 
   return (
@@ -54,26 +54,44 @@ export default function ModeSelectorModal({
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalScrollView}>
-            {modes.map((modeOption) => (
-              <TouchableOpacity
-                key={modeOption.id}
-                style={[
-                  styles.modalOption(colors),
-                  currentMode === modeOption.id && styles.modalOptionSelected(colors)
-                ]}
-                onPress={() => handleSelectMode(modeOption.id)}
-              >
-                <Text style={[
-                  styles.modalOptionText(colors),
-                  currentMode === modeOption.id && styles.modalOptionTextSelected(colors)
-                ]}>
-                  {modeOption.label}
-                </Text>
-                {currentMode === modeOption.id && (
-                  <FontAwesome5 name="check" size={16} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            ))}
+            {modes.map((modeOption) => {
+              const isDisabled = modeOption.disabled;
+              return (
+                <TouchableOpacity
+                  key={modeOption.id}
+                  style={[
+                    styles.modalOption(colors),
+                    currentMode === modeOption.id && styles.modalOptionSelected(colors),
+                    isDisabled && { opacity: 0.5 }
+                  ]}
+                  onPress={() => !isDisabled && handleSelectMode(modeOption.id)}
+                  disabled={isDisabled}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Text style={[
+                      styles.modalOptionText(colors),
+                      currentMode === modeOption.id && styles.modalOptionTextSelected(colors),
+                      isDisabled && { color: colors.textSecondary }
+                    ]}>
+                      {modeOption.label}
+                    </Text>
+                    {isDisabled && (
+                      <Text style={[styles.modalOptionText(colors), { 
+                        marginLeft: 8, 
+                        fontSize: 12, 
+                        color: colors.textSecondary,
+                        fontStyle: 'italic'
+                      }]}>
+                        (Coming soon)
+                      </Text>
+                    )}
+                  </View>
+                  {currentMode === modeOption.id && !isDisabled && (
+                    <FontAwesome5 name="check" size={16} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       </TouchableOpacity>

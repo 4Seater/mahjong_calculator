@@ -174,12 +174,45 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   // Apply custom rules
   let customRulesMultiplier = 1;
   let customRulesPoints = 0;
+  let opponentDeductionPoints = 0;
+  let discarderDeductionPoints = 0;
+  let opponentDeductionMultiplier = 1;
+  let discarderDeductionMultiplier = 1;
+  
   if (input.customRules && input.customRules.length > 0) {
     input.customRules.forEach(rule => {
-      if (rule.type === 'multiplier') {
+      // New format: winnerBonus, discarderPenalty, allPlayerPenalty
+      if (rule.winnerBonus) {
+        if (rule.winnerBonus.type === 'multiplier') {
+          customRulesMultiplier *= rule.winnerBonus.value;
+        } else if (rule.winnerBonus.type === 'points') {
+          customRulesPoints += rule.winnerBonus.value;
+        }
+      }
+      if (rule.discarderPenalty?.enabled) {
+        if (rule.discarderPenalty.type === 'points') {
+          discarderDeductionPoints += rule.discarderPenalty.value;
+        } else {
+          discarderDeductionMultiplier *= rule.discarderPenalty.value;
+        }
+      }
+      if (rule.allPlayerPenalty?.enabled) {
+        if (rule.allPlayerPenalty.type === 'points') {
+          opponentDeductionPoints += rule.allPlayerPenalty.value;
+        } else {
+          opponentDeductionMultiplier *= rule.allPlayerPenalty.value;
+        }
+      }
+      
+      // Legacy format support (all legacy penalties are points)
+      if (rule.type === 'multiplier' && rule.value) {
         customRulesMultiplier *= rule.value;
-      } else if (rule.type === 'points') {
+      } else if (rule.type === 'points' && rule.value) {
         customRulesPoints += rule.value;
+      } else if (rule.type === 'opponentDeduction' && rule.value) {
+        opponentDeductionPoints += rule.value;
+      } else if (rule.type === 'discarderDeduction' && rule.value) {
+        discarderDeductionPoints += rule.value;
       }
     });
     
@@ -252,6 +285,45 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
       }
       payerMap[id] = (payerMap[id] || 0) + amount;
     });
+  }
+  
+  // Apply custom rule deductions (points and multipliers)
+  // Apply point deductions
+  if (opponentDeductionPoints > 0 || discarderDeductionPoints > 0) {
+    // Apply opponent point deductions to all non-discarder players
+    if (opponentDeductionPoints > 0) {
+      Object.keys(payerMap).forEach((id) => {
+        if (id !== input.discarderId && id !== input.winnerId) {
+          payerMap[id] = Math.max(0, payerMap[id] - opponentDeductionPoints);
+        }
+      });
+    }
+    
+    // Apply discarder point deduction to discarder only
+    if (discarderDeductionPoints > 0 && input.discarderId) {
+      if (payerMap[input.discarderId] !== undefined) {
+        payerMap[input.discarderId] = Math.max(0, payerMap[input.discarderId] - discarderDeductionPoints);
+      }
+    }
+  }
+  
+  // Apply multiplier deductions (reduce payment by multiplying)
+  if (opponentDeductionMultiplier !== 1 || discarderDeductionMultiplier !== 1) {
+    // Apply opponent multiplier deductions to all non-discarder players
+    if (opponentDeductionMultiplier !== 1) {
+      Object.keys(payerMap).forEach((id) => {
+        if (id !== input.discarderId && id !== input.winnerId) {
+          payerMap[id] = Math.round(payerMap[id] * opponentDeductionMultiplier);
+        }
+      });
+    }
+    
+    // Apply discarder multiplier deduction to discarder only
+    if (discarderDeductionMultiplier !== 1 && input.discarderId) {
+      if (payerMap[input.discarderId] !== undefined) {
+        payerMap[input.discarderId] = Math.round(payerMap[input.discarderId] * discarderDeductionMultiplier);
+      }
+    }
   }
   
   // Only recalculate totalToWinner from payerMap if East's double is enabled and payerMap has valid non-zero entries
@@ -394,27 +466,90 @@ export function computeTournament(input: TournamentInput): TournamentResult {
   // Apply custom rules
   let customRulesMultiplier = 1;
   let customRulesPoints = 0;
+  let opponentDeductionPoints = 0;
+  let discarderDeductionPoints = 0;
+  let opponentDeductionMultiplier = 1;
+  let discarderDeductionMultiplier = 1;
+  
   if (input.customRules && input.customRules.length > 0) {
     input.customRules.forEach(rule => {
-      if (rule.type === 'multiplier') {
+      // New format: winnerBonus, discarderPenalty, allPlayerPenalty
+      if (rule.winnerBonus) {
+        if (rule.winnerBonus.type === 'multiplier') {
+          customRulesMultiplier *= rule.winnerBonus.value;
+        } else if (rule.winnerBonus.type === 'points') {
+          customRulesPoints += rule.winnerBonus.value;
+        }
+      }
+      if (rule.discarderPenalty?.enabled) {
+        if (rule.discarderPenalty.type === 'points') {
+          discarderDeductionPoints += rule.discarderPenalty.value;
+        } else {
+          discarderDeductionMultiplier *= rule.discarderPenalty.value;
+        }
+      }
+      if (rule.allPlayerPenalty?.enabled) {
+        if (rule.allPlayerPenalty.type === 'points') {
+          opponentDeductionPoints += rule.allPlayerPenalty.value;
+        } else {
+          opponentDeductionMultiplier *= rule.allPlayerPenalty.value;
+        }
+      }
+      
+      // Legacy format support (all legacy penalties are points)
+      if (rule.type === 'multiplier' && rule.value) {
         customRulesMultiplier *= rule.value;
-      } else if (rule.type === 'points') {
+      } else if (rule.type === 'points' && rule.value) {
         customRulesPoints += rule.value;
+      } else if (rule.type === 'opponentDeduction' && rule.value) {
+        opponentDeductionPoints += rule.value;
+      } else if (rule.type === 'discarderDeduction' && rule.value) {
+        discarderDeductionPoints += rule.value;
       }
     });
     
-    if (customRulesMultiplier > 1) {
-      // Apply multiplier to all point values
-      for (const id of playerIds) {
-        points[id] = Math.round(points[id] * customRulesMultiplier);
-      }
-      breakdown.push(`Custom rules multiplier: ×${customRulesMultiplier} applied to all points.`);
+    if (customRulesMultiplier > 1 && winnerId) {
+      // Apply multiplier only to winner's score (multipliers increase what the winner receives)
+      points[winnerId] = Math.round(points[winnerId] * customRulesMultiplier);
+      breakdown.push(`Custom rules multiplier: ×${customRulesMultiplier} applied to winner's score.`);
     }
     
     if (customRulesPoints > 0 && winnerId) {
       // Add points to winner
       points[winnerId] += customRulesPoints;
       breakdown.push(`Custom rules points bonus: +${customRulesPoints} to winner.`);
+    }
+    
+    // Apply opponent point deductions (all other players except winner and discarder)
+    if (opponentDeductionPoints > 0) {
+      playerIds.forEach((id) => {
+        if (id !== winnerId && id !== discarderId) {
+          points[id] -= opponentDeductionPoints;
+        }
+      });
+      breakdown.push(`Custom rule: -${opponentDeductionPoints} points to all other players.`);
+    }
+    
+    // Apply opponent multiplier deductions
+    if (opponentDeductionMultiplier !== 1) {
+      playerIds.forEach((id) => {
+        if (id !== winnerId && id !== discarderId) {
+          points[id] = Math.round(points[id] * opponentDeductionMultiplier);
+        }
+      });
+      breakdown.push(`Custom rule: ×${opponentDeductionMultiplier} multiplier to all other players.`);
+    }
+    
+    // Apply discarder point deduction
+    if (discarderDeductionPoints > 0 && discarderId) {
+      points[discarderId] -= discarderDeductionPoints;
+      breakdown.push(`Custom rule: ${discarderId} -${discarderDeductionPoints} points (discarder penalty).`);
+    }
+    
+    // Apply discarder multiplier deduction
+    if (discarderDeductionMultiplier !== 1 && discarderId) {
+      points[discarderId] = Math.round(points[discarderId] * discarderDeductionMultiplier);
+      breakdown.push(`Custom rule: ${discarderId} ×${discarderDeductionMultiplier} multiplier (discarder penalty).`);
     }
   }
 

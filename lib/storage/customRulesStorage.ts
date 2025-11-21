@@ -3,10 +3,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface CustomRule {
   id: string;
   title: string;
-  description: string;
-  type: 'multiplier' | 'points';
-  value: number;
+  description?: string;
+  // Winner bonus - user chooses ONE: points, multiplier, or none
+  winnerBonus?: {
+    type: 'points' | 'multiplier';
+    value: number;
+  };
+  // Penalties - can be used together
+  discarderPenalty?: {
+    enabled: boolean;
+    type: 'points' | 'multiplier';
+    value: number;
+  };
+  allPlayerPenalty?: {
+    enabled: boolean;
+    type: 'points' | 'multiplier';
+    value: number;
+  };
   createdAt: number;
+  // Legacy support - for backward compatibility
+  type?: 'multiplier' | 'points' | 'opponentDeduction' | 'discarderDeduction';
+  value?: number;
 }
 
 const CUSTOM_RULES_STORAGE_KEY = '@mahjong_calculator_custom_rules';

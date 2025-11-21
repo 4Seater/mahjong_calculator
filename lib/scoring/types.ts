@@ -43,8 +43,24 @@ export interface ScoreInput {
   };
   customRules?: Array<{
     id: string;
-    type: 'multiplier' | 'points';
-    value: number;
+    // New format
+    winnerBonus?: {
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    discarderPenalty?: {
+      enabled: boolean;
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    allPlayerPenalty?: {
+      enabled: boolean;
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    // Legacy format support
+    type?: 'multiplier' | 'points' | 'opponentDeduction' | 'discarderDeduction';
+    value?: number;
   }>; // Custom rules applied
 }
 
@@ -105,8 +121,24 @@ export interface TournamentInput {
   // Custom rules
   customRules?: Array<{
     id: string;
-    type: 'multiplier' | 'points';
-    value: number;
+    // New format
+    winnerBonus?: {
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    discarderPenalty?: {
+      enabled: boolean;
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    allPlayerPenalty?: {
+      enabled: boolean;
+      type: 'points' | 'multiplier';
+      value: number;
+    };
+    // Legacy format support
+    type?: 'multiplier' | 'points' | 'opponentDeduction' | 'discarderDeduction';
+    value?: number;
   }>; // Custom rules applied
 }
 
