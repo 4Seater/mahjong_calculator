@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Modal, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Modal, Alert, Switch } from "react-native";
 import { styles } from "./ScoreCalculatorCard.styles";
 import type { WinType, ScoreResult } from "@/lib/scoring/types";
 import { Hand, Tile } from "@/lib/scoring/chineseOfficial/tiles";
@@ -29,7 +29,7 @@ import HandSelectionModal from "./modals/HandSelectionModal";
 import CategorySelectionModal from "./modals/CategorySelectionModal";
 import ModeSelectorModal from "./modals/ModeSelectorModal";
 import SettingsMenuModal from "./modals/SettingsMenuModal";
-import { Row, Label, Seg } from "./shared/CalculatorHelpers";
+import { Row, Label, Seg, RowWithEdit } from "./shared/CalculatorHelpers";
 import CalculatorHeader from "./CalculatorHeader";
 import HandSelectionUI from "./HandSelectionUI";
 import BasePointsInput from "./BasePointsInput";
@@ -64,6 +64,11 @@ export default function ScoreCalculatorCard({
   // Currency/Points selector
   const [displayMode, setDisplayMode] = useState<"currency" | "points">("currency");
   
+  // Wall Game and Kitty
+  const [wallGame, setWallGame] = useState(false);
+  const [kittyEnabled, setKittyEnabled] = useState(false);
+  const [kittyPayout, setKittyPayout] = useState<string>("10");
+  
   // Mode selection - default to standard
   const [mode, setMode] = useState<Mode>("standard");
 
@@ -73,6 +78,7 @@ export default function ScoreCalculatorCard({
   const [jokerless, setJokerless] = useState(false);
   const [singlesAndPairs, setSinglesAndPairs] = useState(false);
   const [misnamedJoker, setMisnamedJoker] = useState(false);
+  const [heavenlyHand, setHeavenlyHand] = useState(false);
 
   // Tournament-specific inputs
   const [playerIds] = useState(["N", "E", "W", "S"]);
@@ -197,6 +203,10 @@ export default function ScoreCalculatorCard({
     setDisplayMode,
     setSinglesAndPairs,
     setMisnamedJoker,
+    setHeavenlyHand,
+    setWallGame,
+    setKittyEnabled,
+    setKittyPayout,
     setNoExposures,
     setExposurePenaltyEnabled,
     setExposurePenaltyPerExposure,
@@ -251,6 +261,11 @@ export default function ScoreCalculatorCard({
     numPlayers,
     noExposures,
     misnamedJoker,
+    heavenlyHand,
+    wallGame,
+    kittyEnabled,
+    kittyPayout,
+    displayMode,
     winnerId,
     discarderId,
     otherPlayerIds,
@@ -312,14 +327,29 @@ export default function ScoreCalculatorCard({
     onComputed?.(result);
   }, [result, onComputed]);
 
-  // Set display format based on mode
+  // Set display format based on mode and sync wall game states
   useEffect(() => {
     if (mode === "tournament") {
       setDisplayMode("points");
+      // Sync wall game state when switching to tournament mode
+      if (wallGame && !isWallGame) {
+        setIsWallGame(true);
+      }
     } else if (mode === "standard") {
       setDisplayMode("currency");
+      // Sync wall game state when switching to standard mode
+      if (isWallGame && !wallGame) {
+        setWallGame(true);
+      }
     }
   }, [mode]);
+
+  // Disable kitty when points mode is selected (no kitty in points mode)
+  useEffect(() => {
+    if (displayMode === "points" && (mode === "standard" || mode === "tournament")) {
+      setKittyEnabled(false);
+    }
+  }, [displayMode, mode]);
 
 
   return (
@@ -340,20 +370,97 @@ export default function ScoreCalculatorCard({
             onPress={() => setShowModeSelectorModal(true)}
           >
             <Text style={styles.dropdownText(colors)}>
-              {mode === "standard" ? "Standard (NMJL)" : mode === "tournament" ? "Tournament" : "Chinese Official"}
+              {mode === "standard" ? "American" : mode === "tournament" ? "Tournament" : "Chinese Official"}
             </Text>
             <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        {/* Currency/Points Selector - Only show for standard/tournament modes */}
-        {mode !== "chineseOfficial" && (
+        {/* Currency/Points Selector - Only show for standard mode, tournament mode is always points */}
+        {mode === "standard" && (
         <View style={styles.section}>
-            <Label colors={colors}>Display Format</Label>
+            <Label colors={colors}>Score format</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
               <Seg selected={displayMode === "currency"} onPress={() => setDisplayMode("currency")} colors={colors} theme={theme}>$$ (Money)</Seg>
               <Seg selected={displayMode === "points"} onPress={() => setDisplayMode("points")} colors={colors} theme={theme}>Points</Seg>
           </Row>
+        </View>
+        )}
+        {/* Tournament mode always uses points - show as read-only */}
+        {mode === "tournament" && (
+        <View style={styles.section}>
+            <Label colors={colors}>Score format</Label>
+          <Row style={{ justifyContent: "flex-start" }} colors={colors}>
+              <Text style={[styles.resultText(colors), { paddingVertical: 8, paddingHorizontal: 12 }]}>Points</Text>
+          </Row>
+        </View>
+        )}
+
+        {/* Wall Game - Only show for standard/tournament modes */}
+        {mode !== "chineseOfficial" && (
+        <View style={[styles.section, { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12 }]}>
+          <RowWithEdit 
+            colors={colors} 
+            onEdit={undefined}
+            editKey={null}
+          >
+            <View style={{ flex: 1 }}>
+              <Label colors={colors} sub="No wins when the tiles run out">Wall Game</Label>
+            </View>
+            <Switch 
+              value={mode === "tournament" ? isWallGame : wallGame} 
+              onValueChange={(value) => {
+                if (mode === "tournament") {
+                  setIsWallGame(value);
+                } else {
+                  setWallGame(value);
+                }
+              }}
+              trackColor={{ false: colors.border, true: colors.gobutton }}
+              thumbColor={(mode === "tournament" ? isWallGame : wallGame) ? colors.card : colors.textSecondary}
+            />
+            {/* Invisible placeholder to align with other toggles */}
+            <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
+              <FontAwesome5 name="edit" size={14} color="transparent" />
+            </View>
+          </RowWithEdit>
+          
+          {/* Kitty toggle - only appears when Wall Game is selected AND currency mode is selected (no kitty in points mode) */}
+          {wallGame && displayMode === "currency" && (
+            <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
+              {/* Vertical line going down */}
+              <View style={{ width: 20, alignItems: 'center', justifyContent: 'flex-start' }}>
+                <View style={{ width: 1, height: 20, backgroundColor: colors.border }} />
+              </View>
+              {/* Horizontal line with arrow and Kitty on same line */}
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                {/* Horizontal line */}
+                <View style={{ width: 16, height: 1, backgroundColor: colors.border }} />
+                {/* Arrow */}
+                <FontAwesome5 name="arrow-right" size={12} color={colors.border} style={{ marginHorizontal: 4 }} />
+                {/* Kitty option */}
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <RowWithEdit 
+                    colors={colors} 
+                    onEdit={() => handleEditRule('kitty', 'points', Number(kittyPayout || 10))}
+                    editKey="kitty"
+                  >
+                    <View style={{ flex: 1, marginLeft: 0 }}>
+                      <Label colors={colors} sub={`All players (including winner) pay ${customRuleValues.kitty?.value || kittyPayout || 10} ${displayMode === 'currency' ? 'cents' : 'points'} to the kitty. Winner of the next game is awarded the kitty in addition to their payout for that game.`}>
+                        Kitty
+                      </Label>
+                    </View>
+                    <Switch 
+                      value={kittyEnabled} 
+                      onValueChange={setKittyEnabled}
+                      trackColor={{ false: colors.border, true: colors.gobutton }}
+                      thumbColor={kittyEnabled ? colors.card : colors.textSecondary}
+                    />
+                  </RowWithEdit>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
         )}
 
@@ -368,6 +475,7 @@ export default function ScoreCalculatorCard({
               showCategoryModal={showCategoryModal}
               showHandModal={showHandModal}
               theme={theme}
+              wallGame={wallGame}
               onShowCategoryModal={() => setShowCategoryModal(true)}
               onShowHandModal={() => setShowHandModal(true)}
             />
@@ -376,15 +484,18 @@ export default function ScoreCalculatorCard({
         <BasePointsInput
           basePoints={basePoints}
           theme={theme}
+          wallGame={wallGame}
           onBasePointsChange={setBasePoints}
         />
 
         {/* Standard Mode Controls */}
         {mode === "standard" && (
           <StandardModeControls
+            wallGame={wallGame}
             winType={winType}
             jokerless={jokerless}
             misnamedJoker={misnamedJoker}
+            heavenlyHand={heavenlyHand}
             noExposures={noExposures}
             exposurePenaltyEnabled={exposurePenaltyEnabled}
             exposurePenaltyPerExposure={exposurePenaltyPerExposure}
@@ -402,6 +513,7 @@ export default function ScoreCalculatorCard({
             onWinTypeChange={setWinType}
             onJokerlessChange={setJokerless}
             onMisnamedJokerChange={setMisnamedJoker}
+            onHeavenlyHandChange={setHeavenlyHand}
             onNoExposuresChange={setNoExposures}
             onExposurePenaltyEnabledChange={setExposurePenaltyEnabled}
             onExposurePenaltyPerExposureChange={setExposurePenaltyPerExposure}
@@ -520,6 +632,8 @@ export default function ScoreCalculatorCard({
             singlesAndPairs={singlesAndPairs}
             noExposures={noExposures}
             standardWinnerExposureCount={standardWinnerExposureCount}
+            wallGame={wallGame}
+            kittyPayout={kittyEnabled ? Number(kittyPayout || 10) : undefined}
             saveSuccess={saveSuccess}
             onSaveSuccess={setSaveSuccess}
             onClear={clearStandard}

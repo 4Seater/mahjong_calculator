@@ -21,6 +21,8 @@ export interface SavedHand {
     others?: number;
   };
   isWinner: boolean; // Whether the current user was the winner
+  wallGame?: boolean; // Whether this was a wall game (no wins)
+  kittyPayout?: number; // Kitty payout amount if kitty was enabled
 }
 
 export interface PlayerStats {
@@ -32,5 +34,6 @@ export interface PlayerStats {
   jokerlessCount: number;
   selfPickCount: number;
   discardWinCount: number;
+  wallGameCount: number;
 }
 

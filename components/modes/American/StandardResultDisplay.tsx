@@ -24,6 +24,8 @@ interface StandardResultDisplayProps {
   singlesAndPairs: boolean;
   noExposures: boolean;
   standardWinnerExposureCount: string;
+  wallGame?: boolean;
+  kittyPayout?: number;
   saveSuccess: boolean;
   onSaveSuccess: (success: boolean) => void;
   // Clear button props
@@ -46,6 +48,8 @@ export default function StandardResultDisplay({
   singlesAndPairs,
   noExposures,
   standardWinnerExposureCount,
+  wallGame,
+  kittyPayout,
   saveSuccess,
   onSaveSuccess,
   onClear,
@@ -56,25 +60,42 @@ export default function StandardResultDisplay({
     <>
       <Text style={styles.resultsTitle(colors)}>Standard Breakdown</Text>
 
-      {/* Base NMJL multipliers in play */}
-      {winType === "self_pick" ? (
-        <Text style={styles.resultText(colors)}>Pattern: Self-Pick → everyone pays ×{(result.rule.allMultiplier ?? 0).toString()}</Text>
+      {/* Wall Game - show special message when enabled */}
+      {result.rule.wallGameApplied ? (
+        <View style={{ marginTop: 8, padding: 12, backgroundColor: colors.inputBackground, borderRadius: 8 }}>
+          <Text style={[styles.resultText(colors), { fontWeight: 'bold', marginBottom: 4 }]}>
+            Wall Game: No wins when tiles run out
+          </Text>
+          <Text style={styles.resultText(colors)}>
+            No scoring applies in a wall game. All players receive 0 points.
+          </Text>
+        </View>
       ) : (
-        <Text style={styles.resultText(colors)}>
-          Pattern: Discard → discarder ×{result.rule.discarderMultiplier ?? 0}, others ×{result.rule.otherMultiplier ?? 0}
-        </Text>
-      )}
-      <Text style={styles.resultText(colors)}>Jokerless applied: {result.rule.jokerlessApplied ? "Yes" : "No"}</Text>
-      {result.rule.misnamedJokerApplied && (
-        <Text style={styles.resultText(colors)}>Misnamed Joker: Yes (discarder pays 4×, others pay nothing)</Text>
-      )}
-      {(result.rule.doublesApplied ?? 0) > 0 && (
-        <Text style={styles.resultText(colors)}>
-          Doubles applied: {result.rule.doublesApplied} (×{Math.pow(2, result.rule.doublesApplied ?? 0)} multiplier)
-        </Text>
-      )}
-      {result.rule.eastDoubleApplied && (
-        <Text style={styles.resultText(colors)}>East's Double: Applied (East pays/receives double)</Text>
+        <>
+          {/* Base NMJL multipliers in play */}
+          {winType === "self_pick" ? (
+            <Text style={styles.resultText(colors)}>Pattern: Self-Pick → everyone pays ×{(result.rule.allMultiplier ?? 0).toString()}</Text>
+          ) : (
+            <Text style={styles.resultText(colors)}>
+              Pattern: Discard → discarder ×{result.rule.discarderMultiplier ?? 0}, others ×{result.rule.otherMultiplier ?? 0}
+            </Text>
+          )}
+          <Text style={styles.resultText(colors)}>Jokerless applied: {result.rule.jokerlessApplied ? "Yes" : "No"}</Text>
+          {result.rule.misnamedJokerApplied && (
+            <Text style={styles.resultText(colors)}>Misnamed Joker: Yes (discarder pays 4×, others pay nothing)</Text>
+          )}
+          {result.rule.heavenlyHandApplied && (
+            <Text style={styles.resultText(colors)}>Heavenly Hand: Yes (2× payout from all players)</Text>
+          )}
+          {(result.rule.doublesApplied ?? 0) > 0 && (
+            <Text style={styles.resultText(colors)}>
+              Doubles applied: {result.rule.doublesApplied} (×{Math.pow(2, result.rule.doublesApplied ?? 0)} multiplier)
+            </Text>
+          )}
+          {result.rule.eastDoubleApplied && (
+            <Text style={styles.resultText(colors)}>East's Double: Applied (East pays/receives double)</Text>
+          )}
+        </>
       )}
       {selectedCustomRuleIds.size > 0 && (
         <View style={{ marginTop: 8 }}>
@@ -149,8 +170,11 @@ export default function StandardResultDisplay({
 
       {/* Per-payer */}
       <View style={styles.paymentSection}>
-        {/* Show individual payer breakdown when East's double is enabled and winner is not East */}
-        {eastDouble && !isWinnerEast && Object.keys(result.payerMap || {}).length > 0 ? (
+        {/* When wall game is enabled, skip normal payment breakdown */}
+        {result.rule.wallGameApplied ? null : (
+          <>
+            {/* Show individual payer breakdown when East's double is enabled and winner is not East */}
+            {eastDouble && !isWinnerEast && Object.keys(result.payerMap || {}).length > 0 ? (
           <>
             {(() => {
               // Get all payer entries (excluding winner)
@@ -175,22 +199,22 @@ export default function StandardResultDisplay({
               return (
                 <>
                   {/* East pays section - always show if East is in payerMap */}
-                  {eastEntry && (
+                  {eastEntry ? (
                     <Text style={styles.paymentText(colors)}>
                       {displayMode === "currency"
                         ? `East pays: $${(eastEntry[1] / 100).toFixed(2)} (2× standard)`
                         : `East: -${eastEntry[1]} pts (2× standard)`}
                     </Text>
-                  )}
+                  ) : null}
                   
                   {/* Opponents pay section */}
-                  {otherEntries.length > 0 && (
+                  {otherEntries.length > 0 ? (
                     <Text style={styles.paymentText(colors)}>
                       {displayMode === "currency"
                         ? `Each opponent pays: $${(standardAmount / 100).toFixed(2)}`
                         : `Each opponent: -${standardAmount} pts`}
                     </Text>
-                  )}
+                  ) : null}
                 </>
               );
             })()}
@@ -219,6 +243,8 @@ export default function StandardResultDisplay({
             )}
           </>
         )}
+          </>
+        )}
         {(result.jokerlessPointsBonus ?? 0) > 0 && (
           <Text style={styles.resultText(colors)}>
             Jokerless bonus: +{result.jokerlessPointsBonus} {displayMode === "currency" ? "cents" : "pts"}
@@ -229,11 +255,35 @@ export default function StandardResultDisplay({
             Exposure penalty: -{result.exposurePenalty} {displayMode === "currency" ? "cents" : "pts"}
           </Text>
         )}
-        <Text style={styles.totalText(colors, theme)}>
-          Total to Winner: {displayMode === "currency"
-            ? `$${(result.totalToWinner / 100).toFixed(2)}`
-            : `${result.totalToWinner} pts`}
-        </Text>
+        {/* Kitty info - show separately if not wall game */}
+        {!result.rule.wallGameApplied && (result.rule.kittyApplied && (result.kittyPerPlayer ?? 0) > 0) ? (
+          <Text style={styles.resultText(colors)}>
+            {displayMode === "currency" 
+              ? `Kitty: All players pay $${((result.kittyPerPlayer ?? 0) / 100).toFixed(2)} each (total: $${((result.kittyPayout ?? 0) / 100).toFixed(2)}). Winner of next game receives the kitty in addition to their payout for that game.`
+              : `Kitty: All players awarded ${result.kittyPerPlayer ?? 0} pts each (total: ${result.kittyPayout ?? 0} pts). Winner of next game receives the kitty in addition to their payout for that game.`}
+          </Text>
+        ) : null}
+        {/* Total section */}
+        {!result.rule.wallGameApplied ? (
+          <Text style={styles.totalText(colors, theme)}>
+            Total to Winner: {displayMode === "currency"
+              ? `$${(result.totalToWinner / 100).toFixed(2)}`
+              : `${result.totalToWinner} pts`}
+          </Text>
+        ) : (
+          /* Wall game - show points/kitty message */
+          result.rule.kittyApplied && (result.kittyPerPlayer ?? 0) > 0 ? (
+            <Text style={styles.totalText(colors, theme)}>
+              {displayMode === "currency"
+                ? `All players pay $${((result.kittyPerPlayer ?? 0) / 100).toFixed(2)} to kitty. This amount to be awarded to winner of next game in addition to their payout for that game.`
+                : `All players awarded ${result.kittyPerPlayer ?? 0} pts each (total: ${result.kittyPayout ?? 0} pts).`}
+            </Text>
+          ) : (
+            <Text style={styles.totalText(colors, theme)}>
+              Total to Winner: 0 (No wins in wall game)
+            </Text>
+          )
+        )}
       </View>
 
       {/* Save Hand Section */}
@@ -248,6 +298,8 @@ export default function StandardResultDisplay({
         displayMode={displayMode}
         mode="standard"
         standardWinnerExposureCount={standardWinnerExposureCount}
+        wallGame={wallGame}
+        kittyPayout={kittyPayout}
         saveSuccess={saveSuccess}
         theme={theme}
         onSaveSuccess={onSaveSuccess}

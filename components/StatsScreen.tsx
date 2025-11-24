@@ -164,6 +164,10 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
             <Text style={styles.statLabel(colors)}>Discard Wins:</Text>
             <Text style={styles.statValue(colors)}>{stats.discardWinCount}</Text>
           </View>
+          <View style={styles.statRow(colors)}>
+            <Text style={styles.statLabel(colors)}>Wall Games:</Text>
+            <Text style={styles.statValue(colors)}>{stats.wallGameCount}</Text>
+          </View>
         </View>
 
         {/* Favorite Hands */}

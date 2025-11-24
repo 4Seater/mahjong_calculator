@@ -9,9 +9,11 @@ import CustomRulesSection from '../../CustomRulesSection';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 
 interface StandardModeControlsProps {
+  wallGame: boolean;
   winType: WinType;
   jokerless: boolean;
   misnamedJoker: boolean;
+  heavenlyHand: boolean;
   noExposures: boolean;
   exposurePenaltyEnabled: boolean;
   exposurePenaltyPerExposure: string;
@@ -29,6 +31,7 @@ interface StandardModeControlsProps {
   onWinTypeChange: (winType: WinType) => void;
   onJokerlessChange: (value: boolean) => void;
   onMisnamedJokerChange: (value: boolean) => void;
+  onHeavenlyHandChange: (value: boolean) => void;
   onNoExposuresChange: (value: boolean) => void;
   onExposurePenaltyEnabledChange: (value: boolean) => void;
   onExposurePenaltyPerExposureChange: (value: string) => void;
@@ -46,9 +49,11 @@ interface StandardModeControlsProps {
 }
 
 export default function StandardModeControls({
+  wallGame,
   winType,
   jokerless,
   misnamedJoker,
+  heavenlyHand,
   noExposures,
   exposurePenaltyEnabled,
   exposurePenaltyPerExposure,
@@ -66,6 +71,7 @@ export default function StandardModeControls({
   onWinTypeChange,
   onJokerlessChange,
   onMisnamedJokerChange,
+  onHeavenlyHandChange,
   onNoExposuresChange,
   onExposurePenaltyEnabledChange,
   onExposurePenaltyPerExposureChange,
@@ -86,21 +92,27 @@ export default function StandardModeControls({
   return (
     <>
       {/* Win Type */}
-      <View style={{ marginTop: 4 }}>
+      <View style={{ marginTop: 4, opacity: wallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Win Type</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-          <Seg selected={winType === "self_pick"} onPress={() => onWinTypeChange("self_pick")} colors={colors} theme={theme}>Self-Pick</Seg>
-          <Seg selected={winType === "discard"} onPress={() => onWinTypeChange("discard")} colors={colors} theme={theme}>From Discard</Seg>
+          <Seg selected={winType === "self_pick"} onPress={() => !wallGame && onWinTypeChange("self_pick")} colors={colors} theme={theme} disabled={wallGame}>Self-Pick</Seg>
+          <Seg selected={winType === "discard"} onPress={() => !wallGame && onWinTypeChange("discard")} colors={colors} theme={theme} disabled={wallGame}>From Discard</Seg>
         </Row>
       </View>
 
       {/* Standard Rules */}
-      <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
+      <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1, opacity: wallGame ? 0.5 : 1 }}>
+        {/* Header */}
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
+          <Label colors={colors}>Standard NMJL Rules</Label>
+        </View>
+        
         {/* Jokerless */}
         <RowWithEdit 
           colors={colors} 
           onEdit={() => onEditRule('jokerless', 'multiplier', 2)}
           editKey="jokerless"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
             <Label colors={colors} sub={`No jokers anywhere in the hand (${customRuleValues.jokerless?.type === 'points' ? '+' : '×'}${customRuleValues.jokerless?.value || 2}).`}>
@@ -109,7 +121,8 @@ export default function StandardModeControls({
           </View>
           <Switch 
             value={jokerless} 
-            onValueChange={onJokerlessChange}
+            onValueChange={wallGame ? undefined : onJokerlessChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={jokerless ? colors.card : colors.textSecondary}
           />
@@ -120,6 +133,7 @@ export default function StandardModeControls({
           colors={colors} 
           onEdit={() => onEditRule('misnamedJoker', 'multiplier', 4)}
           editKey="misnamedJoker"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
             <Label colors={colors} sub={`If a joker is discarded and mis-named, it may be called for mahjong. The multiplier is ${customRuleValues.misnamedJoker?.value || 4}× to the discarder.`}>
@@ -128,26 +142,52 @@ export default function StandardModeControls({
           </View>
           <Switch 
             value={misnamedJoker} 
-            onValueChange={onMisnamedJokerChange}
+            onValueChange={wallGame ? undefined : onMisnamedJokerChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={misnamedJoker ? colors.card : colors.textSecondary}
           />
         </RowWithEdit>
+
+        {/* Heavenly Hand */}
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={undefined}
+          editKey={null}
+        >
+          <View style={{ flex: 1 }}>
+            <Label colors={colors} sub="Wins by East before or right after the Charleston are considered self-picked. Winner receives 2× payout from all players.">
+              Heavenly Hand
+            </Label>
+          </View>
+          <Switch 
+            value={heavenlyHand} 
+            onValueChange={wallGame ? undefined : onHeavenlyHandChange}
+            disabled={wallGame}
+            trackColor={{ false: colors.border, true: colors.gobutton }}
+            thumbColor={heavenlyHand ? colors.card : colors.textSecondary}
+          />
+          {/* Invisible placeholder to align with other toggles */}
+          <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
+            <FontAwesome5 name="edit" size={14} color="transparent" />
+          </View>
+        </RowWithEdit>
       </View>
 
       {/* Optional House Rules */}
-      <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1 }}>
+      <View style={{ marginTop: 8, paddingTop: 8, borderTopColor: colors.border, borderTopWidth: 1, opacity: wallGame ? 0.5 : 1 }}>
         <View style={{ alignItems: 'center', marginBottom: 8 }}>
           <Label colors={colors}>Optional House Rules</Label>
         </View>
 
         {/* No Exposures */}
         <View style={{ marginTop: 8 }}>
-          <RowWithEdit 
-            colors={colors} 
-            onEdit={() => onEditRule('noExposures', 'multiplier', 2)}
-            editKey="noExposures"
-          >
+        <RowWithEdit 
+          colors={colors} 
+          onEdit={() => onEditRule('noExposures', 'multiplier', 2)}
+          editKey="noExposures"
+          disabled={wallGame}
+        >
             <View style={{ flex: 1 }}>
               <Label colors={colors} sub="Award for a fully concealed win">
                 No Exposures (Fully Concealed)
@@ -155,7 +195,8 @@ export default function StandardModeControls({
             </View>
             <Switch 
               value={noExposures} 
-              onValueChange={onNoExposuresChange}
+              onValueChange={wallGame ? undefined : onNoExposuresChange}
+              disabled={wallGame}
               trackColor={{ false: colors.border, true: colors.gobutton }}
               thumbColor={noExposures ? colors.card : colors.textSecondary}
             />
@@ -170,8 +211,8 @@ export default function StandardModeControls({
             </View>
             <Switch 
               value={exposurePenaltyEnabled} 
-              onValueChange={onExposurePenaltyEnabledChange}
-              disabled={noExposures}
+              onValueChange={wallGame ? undefined : onExposurePenaltyEnabledChange}
+              disabled={wallGame || noExposures}
               trackColor={{ false: colors.border, true: colors.gobutton }}
               thumbColor={exposurePenaltyEnabled ? colors.card : colors.textSecondary}
             />
@@ -188,10 +229,11 @@ export default function StandardModeControls({
                 <TextInput
                   keyboardType="number-pad"
                   value={standardWinnerExposureCount}
-                  onChangeText={onStandardWinnerExposureCountChange}
+                  onChangeText={wallGame ? undefined : onStandardWinnerExposureCountChange}
+                  editable={!wallGame}
                   placeholder="0"
                   placeholderTextColor={colors.textSecondary}
-                  style={styles.textInput(colors)}
+                  style={[styles.textInput(colors), wallGame && { opacity: 0.5 }]}
                 />
               </View>
               
@@ -200,10 +242,11 @@ export default function StandardModeControls({
                 <TextInput
                   keyboardType="number-pad"
                   value={exposurePenaltyPerExposure}
-                  onChangeText={onExposurePenaltyPerExposureChange}
+                  onChangeText={wallGame ? undefined : onExposurePenaltyPerExposureChange}
+                  editable={!wallGame}
                   placeholder="5"
                   placeholderTextColor={colors.textSecondary}
-                  style={styles.textInput(colors)}
+                  style={[styles.textInput(colors), wallGame && { opacity: 0.5 }]}
                 />
               </View>
             </View>
@@ -215,13 +258,15 @@ export default function StandardModeControls({
           colors={colors} 
           onEdit={() => onEditRule('lastTileFromWall', 'multiplier', 2)}
           editKey="lastTileFromWall"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
             <Label colors={colors} sub="Last tile taken from wall">Last Tile from Wall</Label>
           </View>
           <Switch 
             value={lastTileFromWall} 
-            onValueChange={onLastTileFromWallChange}
+            onValueChange={wallGame ? undefined : onLastTileFromWallChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={lastTileFromWall ? colors.card : colors.textSecondary}
           />
@@ -231,13 +276,15 @@ export default function StandardModeControls({
           colors={colors} 
           onEdit={() => onEditRule('lastTileClaim', 'multiplier', 2)}
           editKey="lastTileClaim"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
             <Label colors={colors} sub="Last tile discarded in the game">Last Tile Claim</Label>
           </View>
           <Switch 
             value={lastTileClaim} 
-            onValueChange={onLastTileClaimChange}
+            onValueChange={wallGame ? undefined : onLastTileClaimChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={lastTileClaim ? colors.card : colors.textSecondary}
           />
@@ -247,13 +294,15 @@ export default function StandardModeControls({
           colors={colors} 
           onEdit={() => onEditRule('robbingTheJoker', 'multiplier', 2)}
           editKey="robbingTheJoker"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
             <Label colors={colors} sub="Robbing a joker from a player's exposure for Mah Jongg">Robbing the Joker</Label>
           </View>
           <Switch 
             value={robbingTheJoker} 
-            onValueChange={onRobbingTheJokerChange}
+            onValueChange={wallGame ? undefined : onRobbingTheJokerChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={robbingTheJoker ? colors.card : colors.textSecondary}
           />
@@ -265,7 +314,8 @@ export default function StandardModeControls({
           </View>
           <Switch 
             value={eastDouble} 
-            onValueChange={onEastDoubleChange}
+            onValueChange={wallGame ? undefined : onEastDoubleChange}
+            disabled={wallGame}
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={eastDouble ? colors.card : colors.textSecondary}
           />
@@ -280,7 +330,8 @@ export default function StandardModeControls({
               <Label colors={colors} sub="Mark if you (the winner) are East">I Am East</Label>
               <Switch 
                 value={isWinnerEast} 
-                onValueChange={onIsWinnerEastChange}
+                onValueChange={wallGame ? undefined : onIsWinnerEastChange}
+                disabled={wallGame}
                 trackColor={{ false: colors.border, true: colors.gobutton }}
                 thumbColor={isWinnerEast ? colors.card : colors.textSecondary}
               />
@@ -290,21 +341,23 @@ export default function StandardModeControls({
       </View>
 
       {/* Custom Rules */}
-      <CustomRulesSection
-        customRules={customRules}
-        selectedCustomRuleIds={selectedCustomRuleIds}
-        theme={theme}
-        onSelectedCustomRuleIdsChange={onSelectedCustomRuleIdsChange}
-        onCustomRulesChange={onCustomRulesChange}
-        onShowCustomRuleModal={onShowCustomRuleModal}
-      />
+      <View style={{ opacity: wallGame ? 0.5 : 1 }}>
+        <CustomRulesSection
+          customRules={customRules}
+          selectedCustomRuleIds={selectedCustomRuleIds}
+          theme={theme}
+          onSelectedCustomRuleIdsChange={wallGame ? () => {} : onSelectedCustomRuleIdsChange}
+          onCustomRulesChange={onCustomRulesChange}
+          onShowCustomRuleModal={wallGame ? () => {} : onShowCustomRuleModal}
+        />
+      </View>
 
       {/* Players */}
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 8, opacity: wallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Players</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
           {[2, 3, 4].map((n) => (
-            <Seg key={n} selected={numPlayers === n} onPress={() => onNumPlayersChange(n)} colors={colors} theme={theme}>
+            <Seg key={n} selected={numPlayers === n} onPress={() => !wallGame && onNumPlayersChange(n)} colors={colors} theme={theme} disabled={wallGame}>
               {n}
             </Seg>
           ))}

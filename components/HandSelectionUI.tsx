@@ -13,6 +13,7 @@ interface HandSelectionUIProps {
   showCategoryModal: boolean;
   showHandModal: boolean;
   theme: 'light' | 'dark';
+  wallGame?: boolean;
   onShowCategoryModal: () => void;
   onShowHandModal: () => void;
 }
@@ -22,6 +23,7 @@ export default function HandSelectionUI({
   selectedHand,
   availableHands,
   theme,
+  wallGame = false,
   onShowCategoryModal,
   onShowHandModal,
 }: HandSelectionUIProps) {
@@ -30,11 +32,12 @@ export default function HandSelectionUI({
   return (
     <>
       {/* Hand Category Selection */}
-      <View>
+      <View style={{ opacity: wallGame ? 0.5 : 1 }}>
         <Label colors={colors} sub="Select the category of your hand">Hand Category</Label>
         <TouchableOpacity
-          style={styles.dropdownButton(colors)}
-          onPress={onShowCategoryModal}
+          style={[styles.dropdownButton(colors), wallGame && { opacity: 0.5 }]}
+          onPress={wallGame ? undefined : onShowCategoryModal}
+          disabled={wallGame}
         >
           <Text style={[styles.dropdownText(colors), !selectedCategoryId && styles.dropdownPlaceholder(colors)]}>
             {selectedCategoryId ? getCategoryById(selectedCategoryId)?.name || "Select Category" : "Select Category"}
@@ -45,18 +48,18 @@ export default function HandSelectionUI({
 
       {/* Hand Selection - Only show if category is selected */}
       {selectedCategoryId && (
-        <View>
+        <View style={{ opacity: wallGame ? 0.5 : 1 }}>
           <Label colors={colors} sub="Select the specific line number from the category">Line number</Label>
           <TouchableOpacity
-            style={styles.dropdownButton(colors)}
-            onPress={() => {
+            style={[styles.dropdownButton(colors), (wallGame || availableHands.length === 0) && { opacity: 0.5 }]}
+            onPress={wallGame ? undefined : () => {
               if (availableHands.length > 0) {
                 onShowHandModal();
               } else {
                 Alert.alert("No Hands Available", "This category doesn't have any hands available.");
               }
             }}
-            disabled={availableHands.length === 0}
+            disabled={wallGame || availableHands.length === 0}
           >
             <Text style={[
               styles.dropdownText(colors), 

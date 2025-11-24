@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from './ScoreCalculatorCard.styles';
+import { styles } from '../ScoreCalculatorCard.styles';
 import { getCategoryById, formatHandName } from '@/lib/data/handCategories';
 
 interface HandSelectionModalProps {
@@ -61,7 +61,7 @@ export default function HandSelectionModal({
               </View>
             ) : (
               availableHands.map((handNumber) => {
-                const formattedName = formatHandName(selectedCategoryId, handNumber);
+                const formattedName = formatHandName(selectedCategoryId || '', handNumber);
                 return (
                   <TouchableOpacity
                     key={handNumber}

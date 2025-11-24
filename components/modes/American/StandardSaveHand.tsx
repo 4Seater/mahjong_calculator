@@ -18,6 +18,8 @@ interface StandardSaveHandProps {
   displayMode: 'currency' | 'points';
   mode: string;
   standardWinnerExposureCount: string;
+  wallGame?: boolean;
+  kittyPayout?: number;
   saveSuccess: boolean;
   theme: 'light' | 'dark';
   onSaveSuccess: (success: boolean) => void;
@@ -34,6 +36,8 @@ export default function StandardSaveHand({
   displayMode,
   mode,
   standardWinnerExposureCount,
+  wallGame,
+  kittyPayout,
   saveSuccess,
   theme,
   onSaveSuccess,
@@ -45,7 +49,7 @@ export default function StandardSaveHand({
       const handToSave: SavedHand = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         timestamp: Date.now(),
-        handName: handName.trim() || "Custom Hand",
+        handName: handName.trim() || (wallGame ? "Wall Game" : "Custom Hand"),
         basePoints: Number(basePoints || 0),
         winType,
         jokerless,
@@ -57,7 +61,9 @@ export default function StandardSaveHand({
         exposurePenalty: result.exposurePenalty,
         winnerExposureCount: Number(standardWinnerExposureCount || 0),
         perLoserAmounts: result.perLoserAmounts,
-        isWinner: true, // All saved hands are wins for the user
+        isWinner: !wallGame, // Wall games are not wins
+        wallGame: wallGame || false,
+        kittyPayout: kittyPayout,
       };
       await saveHand(handToSave);
       onSaveSuccess(true);

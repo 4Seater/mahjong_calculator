@@ -36,6 +36,8 @@ export default function EditRuleModal({
         return 'Jokerless';
       case 'misnamedJoker':
         return 'Mis-named Joker';
+      case 'kitty':
+        return 'Kitty';
       case 'lastTileFromWall':
         return 'Last Tile from Wall';
       case 'lastTileClaim':

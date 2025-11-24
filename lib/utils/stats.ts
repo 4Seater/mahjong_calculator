@@ -11,6 +11,7 @@ export const calculateStats = (hands: SavedHand[]): PlayerStats => {
       jokerlessCount: 0,
       selfPickCount: 0,
       discardWinCount: 0,
+      wallGameCount: 0,
     };
   }
 
@@ -33,6 +34,7 @@ export const calculateStats = (hands: SavedHand[]): PlayerStats => {
     jokerlessCount: hands.filter(h => h.jokerless).length,
     selfPickCount: hands.filter(h => h.winType === 'self_pick').length,
     discardWinCount: hands.filter(h => h.winType === 'discard').length,
+    wallGameCount: hands.filter(h => h.wallGame).length,
   };
 };
 

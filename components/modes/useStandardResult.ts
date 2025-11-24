@@ -11,6 +11,11 @@ interface UseStandardResultParams {
   numPlayers: number;
   noExposures: boolean;
   misnamedJoker: boolean;
+  heavenlyHand: boolean;
+  wallGame: boolean;
+  kittyEnabled: boolean;
+  kittyPayout: string;
+  displayMode: 'currency' | 'points';
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
@@ -35,6 +40,11 @@ export function useStandardResult({
   numPlayers,
   noExposures,
   misnamedJoker,
+  heavenlyHand,
+  wallGame,
+  kittyEnabled,
+  kittyPayout,
+  displayMode,
   winnerId,
   discarderId,
   otherPlayerIds,
@@ -69,6 +79,11 @@ export function useStandardResult({
       noExposures,
       noExposureBonus,
       misnamedJoker,
+      heavenlyHand,
+      wallGame,
+      kittyEnabled,
+      kittyPayout: (kittyEnabled || (displayMode === 'points' && wallGame)) ? Number(kittyPayout || 10) : 0,
+      displayMode,
       winnerId,
       discarderId,
       otherPlayerIds,
@@ -121,6 +136,10 @@ export function useStandardResult({
     numPlayers,
     noExposures,
     misnamedJoker,
+    heavenlyHand,
+    wallGame,
+    kittyEnabled,
+    kittyPayout,
     winnerId,
     discarderId,
     otherPlayerIds,

@@ -7,18 +7,20 @@ import { Label } from './shared/CalculatorHelpers';
 interface BasePointsInputProps {
   basePoints: string;
   theme: 'light' | 'dark';
+  wallGame?: boolean;
   onBasePointsChange: (value: string) => void;
 }
 
 export default function BasePointsInput({
   basePoints,
   theme,
+  wallGame = false,
   onBasePointsChange,
 }: BasePointsInputProps) {
   const colors = getColors(theme);
 
   return (
-    <View>
+    <View style={{ opacity: wallGame ? 0.5 : 1 }}>
       <Label colors={colors} sub="Type the printed value from your NMJL card">Base Points</Label>
       <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
         (points or cents)
@@ -26,7 +28,8 @@ export default function BasePointsInput({
       <TextInput
         keyboardType="number-pad"
         value={basePoints}
-        onChangeText={onBasePointsChange}
+        onChangeText={wallGame ? undefined : onBasePointsChange}
+        editable={!wallGame}
         placeholder="e.g., 25"
         placeholderTextColor={colors.textSecondary}
         style={styles.textInput(colors)}

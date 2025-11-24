@@ -79,89 +79,83 @@ export default function TournamentModeControls({
   return (
     <>
       {/* Win Type for Tournament */}
-      <View style={{ marginTop: 4 }}>
+      <View style={{ marginTop: 4, opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Win Type</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
-          <Seg selected={winType === "self_pick"} onPress={() => onWinTypeChange("self_pick")} colors={colors} theme={theme}>Self-Pick</Seg>
-          <Seg selected={winType === "discard"} onPress={() => onWinTypeChange("discard")} colors={colors} theme={theme}>From Discard</Seg>
+          <Seg selected={winType === "self_pick"} onPress={() => !isWallGame && onWinTypeChange("self_pick")} colors={colors} theme={theme} disabled={isWallGame}>Self-Pick</Seg>
+          <Seg selected={winType === "discard"} onPress={() => !isWallGame && onWinTypeChange("discard")} colors={colors} theme={theme} disabled={isWallGame}>From Discard</Seg>
         </Row>
       </View>
 
       {/* Tournament-specific toggles */}
-      <Row colors={colors}>
+      <Row colors={colors} style={{ opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Self-Pick Bonus (+10)</Label>
         <Switch 
           value={selfPick} 
-          onValueChange={onSelfPickChange}
+          onValueChange={isWallGame ? undefined : onSelfPickChange}
+          disabled={isWallGame}
           trackColor={{ false: colors.border, true: colors.gobutton }}
           thumbColor={selfPick ? colors.card : colors.textSecondary}
         />
       </Row>
-      <Row colors={colors}>
+      <Row colors={colors} style={{ opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors} sub="No jokers anywhere.">Jokerless (+20)</Label>
         <Switch 
           value={jokerless} 
-          onValueChange={onJokerlessChange}
+          onValueChange={isWallGame ? undefined : onJokerlessChange}
+          disabled={isWallGame}
           trackColor={{ false: colors.border, true: colors.gobutton }}
           thumbColor={jokerless ? colors.card : colors.textSecondary}
         />
       </Row>
 
       {/* Winner & discarder selection */}
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 8, opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Winner</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
           {playerIds.map(id => (
-            <Seg key={id} selected={tournamentWinnerId === id} onPress={() => onTournamentWinnerIdChange(id)} colors={colors} theme={theme}>{id}</Seg>
+            <Seg key={id} selected={tournamentWinnerId === id} onPress={() => !isWallGame && onTournamentWinnerIdChange(id)} colors={colors} theme={theme} disabled={isWallGame}>{id}</Seg>
           ))}
         </Row>
       </View>
 
       {winType === "discard" && (
-        <View style={{ marginTop: 8 }}>
+        <View style={{ marginTop: 8, opacity: isWallGame ? 0.5 : 1 }}>
           <Label colors={colors}>Discarder</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
             {playerIds.filter(id => id !== tournamentWinnerId).map(id => (
-              <Seg key={id} selected={tournamentDiscarderId === id} onPress={() => onTournamentDiscarderIdChange(id)} colors={colors} theme={theme}>{id}</Seg>
+              <Seg key={id} selected={tournamentDiscarderId === id} onPress={() => !isWallGame && onTournamentDiscarderIdChange(id)} colors={colors} theme={theme} disabled={isWallGame}>{id}</Seg>
             ))}
           </Row>
         </View>
       )}
 
-      <View style={{ marginTop: 8 }}>
+      <View style={{ marginTop: 8, opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors} sub="Winner's exposures at time of win determine discarder penalty (0–1 => -10; 2+ => -20).">
           Winner Exposure Count
         </Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
           {[0,1,2,3,4].map(n => (
-            <Seg key={n} selected={winnerExposureCount === n} onPress={() => onWinnerExposureCountChange(n as 0|1|2|3|4)} colors={colors} theme={theme}>
+            <Seg key={n} selected={winnerExposureCount === n} onPress={() => !isWallGame && onWinnerExposureCountChange(n as 0|1|2|3|4)} colors={colors} theme={theme} disabled={isWallGame}>
               {n}
             </Seg>
           ))}
         </Row>
       </View>
 
-      {/* Wall / Time-expired */}
-      <Row colors={colors}>
-        <Label colors={colors}>Wall Game (+10 each non-dead)</Label>
-        <Switch 
-          value={isWallGame} 
-          onValueChange={onIsWallGameChange}
-          trackColor={{ false: colors.border, true: colors.gobutton }}
-          thumbColor={isWallGame ? colors.card : colors.textSecondary}
-        />
-      </Row>
-      <Row colors={colors}>
+      {/* Time-expired */}
+      <Row colors={colors} style={{ opacity: isWallGame ? 0.5 : 1 }}>
         <Label colors={colors}>Time Expired (everyone 0)</Label>
         <Switch 
           value={timeExpired} 
-          onValueChange={onTimeExpiredChange}
+          onValueChange={isWallGame ? undefined : onTimeExpiredChange}
+          disabled={isWallGame}
           trackColor={{ false: colors.border, true: colors.gobutton }}
           thumbColor={timeExpired ? colors.card : colors.textSecondary}
         />
       </Row>
 
-      {/* Dead hands (no wall bonus) */}
+      {/* Dead hands (no wall bonus) - Always enabled, even when wall game is selected */}
       <View style={{ marginTop: 8 }}>
         <Label colors={colors}>Mark Dead Hands (no +10 on Wall)</Label>
         <Row colors={colors}><Text style={styles.labelText(colors)}>N dead</Text><Switch 
@@ -191,14 +185,16 @@ export default function TournamentModeControls({
       </View>
 
       {/* Custom Rules */}
-      <CustomRulesSection
-        customRules={customRules}
-        selectedCustomRuleIds={selectedCustomRuleIds}
-        theme={theme}
-        onSelectedCustomRuleIdsChange={onSelectedCustomRuleIdsChange}
-        onCustomRulesChange={onCustomRulesChange}
-        onShowCustomRuleModal={onShowCustomRuleModal}
-      />
+      <View style={{ opacity: isWallGame ? 0.5 : 1 }}>
+        <CustomRulesSection
+          customRules={customRules}
+          selectedCustomRuleIds={selectedCustomRuleIds}
+          theme={theme}
+          onSelectedCustomRuleIdsChange={isWallGame ? () => {} : onSelectedCustomRuleIdsChange}
+          onCustomRulesChange={onCustomRulesChange}
+          onShowCustomRuleModal={isWallGame ? () => {} : onShowCustomRuleModal}
+        />
+      </View>
     </>
   );
 }

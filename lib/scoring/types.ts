@@ -14,6 +14,10 @@ export interface ScoreInput {
   noExposures?: boolean;
   noExposureBonus?: NoExposureBonusConfig;
   misnamedJoker?: boolean;
+  heavenlyHand?: boolean; // Wins by East before or right after the Charleston - 2× payout from all players
+  wallGame?: boolean; // No wins when the tiles run out
+  kittyPayout?: number; // Amount each player (including winner) pays to kitty when wall game and kitty enabled
+  displayMode?: 'currency' | 'points'; // Display mode to determine if kitty is deducted (currency) or awarded (points)
   winnerId?: string;
   discarderId?: string;
   otherPlayerIds?: string[];
@@ -71,6 +75,7 @@ export interface ScoreResult {
     otherMultiplier?: number;
     jokerlessApplied: boolean;
     misnamedJokerApplied?: boolean;
+    heavenlyHandApplied?: boolean; // Whether Heavenly Hand is applied (2× payout)
     doublesApplied?: number; // Total number of doubles applied
     eastDoubleApplied?: boolean; // Whether East's double is applied
   };
@@ -84,6 +89,8 @@ export interface ScoreResult {
   };
   jokerlessPointsBonus?: number;
   exposurePenalty?: number;
+  kittyPayout?: number; // Total kitty payout amount (amount per player × number of players)
+  kittyPerPlayer?: number; // Amount each player pays to kitty
 }
 
 /* ---------------------- TOURNAMENT MODE ---------------------- */

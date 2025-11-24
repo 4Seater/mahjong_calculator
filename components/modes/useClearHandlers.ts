@@ -11,6 +11,10 @@ interface UseClearHandlersParams {
   // Standard mode setters
   setSinglesAndPairs?: (value: boolean) => void;
   setMisnamedJoker?: (value: boolean) => void;
+  setHeavenlyHand?: (value: boolean) => void;
+  setWallGame?: (value: boolean) => void;
+  setKittyEnabled?: (value: boolean) => void;
+  setKittyPayout?: (value: string) => void;
   setNoExposures?: (value: boolean) => void;
   setExposurePenaltyEnabled?: (value: boolean) => void;
   setExposurePenaltyPerExposure?: (value: string) => void;
@@ -109,6 +113,10 @@ export function useClearHandlers(params: UseClearHandlersParams) {
     setJokerless(false);
     setSinglesAndPairs?.(false);
     setMisnamedJoker?.(false);
+    setHeavenlyHand?.(false);
+    setWallGame?.(false);
+    setKittyEnabled?.(false);
+    setKittyPayout?.("10");
     setNoExposures?.(false);
     setExposurePenaltyEnabled?.(false);
     setExposurePenaltyPerExposure?.("5");

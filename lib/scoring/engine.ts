@@ -20,6 +20,53 @@ function sanitizeBase(n: number): number {
  * - Exception: Singles and Pairs Group - jokerless bonus is built into the hand value, so no additional multipliers
  */
 export function computeNmjlStandard(input: ScoreInput): ScoreResult {
+  // If wall game is enabled, no wins are possible - return zero result
+  if (input.wallGame) {
+    const rule: ScoreResult["rule"] = {
+      jokerlessApplied: false,
+      misnamedJokerApplied: false,
+      heavenlyHandApplied: false,
+      wallGameApplied: true,
+      kittyApplied: (input.displayMode === 'points' || (input.kittyPayout && input.kittyPayout > 0)) || false,
+      doublesApplied: 0,
+      eastDoubleApplied: false
+    };
+    
+    // Handle points/kitty based on display mode
+    let kittyPerPlayer = 0;
+    let kittyTotalPayout = 0;
+    let totalToWinner = 0;
+    const numPlayers = Math.max(2, input.numPlayers ?? 4);
+    const isPointsMode = input.displayMode === 'points';
+    
+    if (isPointsMode) {
+      // Points mode: all players are awarded points (default 10 if no kitty amount specified)
+      kittyPerPlayer = input.kittyPayout && input.kittyPayout > 0 ? input.kittyPayout : 10;
+      totalToWinner = kittyPerPlayer; // Each player gets this amount
+      kittyTotalPayout = kittyPerPlayer * numPlayers; // All players awarded
+    } else {
+      // Currency mode: only if kitty is enabled, players pay to kitty
+      if (input.kittyPayout && input.kittyPayout > 0) {
+        kittyPerPlayer = input.kittyPayout;
+        totalToWinner = 0; // Players are paying, not receiving
+        kittyTotalPayout = kittyPerPlayer * numPlayers; // All players pay
+      }
+    }
+    
+    return {
+      rule,
+      perLoserAmounts: { others: 0, discarder: 0 },
+      totalToWinner: totalToWinner,
+      payerMap: {},
+      kittyPayout: kittyTotalPayout,
+      kittyPerPlayer: kittyPerPlayer,
+      appliedNoExposureBonus: false,
+      jokerlessPointsBonus: 0,
+      exposurePenalty: 0,
+      customRulesApplied: []
+    };
+  }
+  
   const base = sanitizeBase(input.basePoints || 0);
   const numPlayers = Math.max(2, input.numPlayers ?? 4);
   // Jokerless applies only if hand is jokerless AND not Singles and Pairs
@@ -53,6 +100,9 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   const rule: ScoreResult["rule"] = { 
     jokerlessApplied,
     misnamedJokerApplied: input.misnamedJoker && input.winType === "discard",
+    heavenlyHandApplied: input.heavenlyHand ?? false,
+    wallGameApplied: input.wallGame ?? false,
+    kittyApplied: (input.kittyPayout && input.kittyPayout > 0) ?? false,
     doublesApplied: totalDoubles,
     eastDoubleApplied: input.eastDouble ?? false
   };
@@ -234,10 +284,24 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     }
   }
   
+  // Apply Heavenly Hand: 2× payout from all players
+  if (input.heavenlyHand) {
+    if (perLoserAmounts.others !== undefined) {
+      perLoserAmounts.others = Math.round(perLoserAmounts.others * 2);
+    }
+    if (perLoserAmounts.discarder !== undefined) {
+      perLoserAmounts.discarder = Math.round(perLoserAmounts.discarder * 2);
+    }
+    totalToWinner = Math.round(totalToWinner * 2);
+    // Apply to flat bonuses as well
+    jokerlessPointsBonus = Math.round(jokerlessPointsBonus * 2);
+    exposurePenalty = Math.round(exposurePenalty * 2);
+  }
+
   // Track flat bonuses that need to be preserved (after multipliers are applied)
   const flatBonusAmount = jokerlessPointsBonus + customRulesPoints - exposurePenalty;
   // Also track no-exposure flat bonus if it was added
-  const noExposureFlatBonus = (input.noExposures && neb && neb.mode === "flat") ? Math.round(neb.value * doublesMultiplier * customRulesMultiplier) : 0;
+  const noExposureFlatBonus = (input.noExposures && neb && neb.mode === "flat") ? Math.round(neb.value * doublesMultiplier * customRulesMultiplier * (input.heavenlyHand ? 2 : 1)) : 0;
 
   // Determine if winner is East (for East's double rule)
   // Use explicit flag if provided, otherwise check winnerId
@@ -343,13 +407,43 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   }
   // If East's double is not enabled, totalToWinner already has the correct value from above
   
+  // Apply Kitty payout
+  // In currency mode: all players pay to kitty (deducted)
+  // In points mode: all players are awarded points (added)
+  let kittyPerPlayer = 0;
+  let kittyTotalPayout = 0;
+  if (input.kittyPayout && input.kittyPayout > 0) {
+    kittyPerPlayer = input.kittyPayout;
+    const isPointsMode = input.displayMode === 'points';
+    
+    if (isPointsMode) {
+      // Points mode: all players are awarded the points (added to their score)
+      // This doesn't affect the winner's payout calculation, just tracked for display
+      kittyTotalPayout = kittyPerPlayer * numPlayers; // All players awarded
+    } else {
+      // Currency mode: all players pay to kitty (deducted)
+      // Deduct from all players in payerMap (losers)
+      Object.keys(payerMap).forEach((id) => {
+        if (payerMap[id] > 0) {
+          payerMap[id] = Math.max(0, payerMap[id] - kittyPerPlayer);
+          kittyTotalPayout += kittyPerPlayer;
+        }
+      });
+      // Also deduct from winner's total (they receive less)
+      totalToWinner = Math.max(0, totalToWinner - kittyPerPlayer);
+      kittyTotalPayout += kittyPerPlayer; // Winner also pays
+    }
+  }
+  
   if (input.winnerId) payerMap[input.winnerId] = -totalToWinner;
 
   return { 
     rule, 
     perLoserAmounts, 
     totalToWinner, 
-    payerMap, 
+    payerMap,
+    kittyPayout: kittyTotalPayout,
+    kittyPerPlayer: kittyPerPlayer, 
     appliedNoExposureBonus,
     jokerlessPointsBonus,
     exposurePenalty

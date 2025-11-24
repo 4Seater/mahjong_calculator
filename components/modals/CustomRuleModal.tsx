@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Alert, Dimensions, Switch, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from './ScoreCalculatorCard.styles';
-import { Row, Label, Seg } from './shared/CalculatorHelpers';
+import { styles } from '../ScoreCalculatorCard.styles';
+import { Row, Label, Seg } from '../shared/CalculatorHelpers';
 import { saveCustomRule, getCustomRules, type CustomRule } from '@/lib/storage/customRulesStorage';
 
 interface CustomRuleModalProps {

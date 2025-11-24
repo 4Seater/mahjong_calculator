@@ -7,14 +7,15 @@ export function Row({ children, style, colors }: any) {
   return <View style={[styles.row(colors), style]}>{children}</View>;
 }
 
-export function RowWithEdit({ children, style, colors, onEdit, editKey }: any) {
+export function RowWithEdit({ children, style, colors, onEdit, editKey, disabled }: any) {
   return (
     <View style={[styles.row(colors), style]}>
       {children}
       {onEdit && (
         <TouchableOpacity
-          onPress={() => onEdit(editKey)}
-          style={{ padding: 8, marginLeft: 8 }}
+          onPress={disabled ? undefined : () => onEdit(editKey)}
+          disabled={disabled}
+          style={{ padding: 8, marginLeft: 8, opacity: disabled ? 0.3 : 1 }}
         >
           <FontAwesome5 name="edit" size={14} color={colors.textSecondary} />
         </TouchableOpacity>
@@ -32,13 +33,15 @@ export function Label({ children, sub, colors }: { children: React.ReactNode; su
   );
 }
 
-export function Seg({ selected, onPress, children, colors, theme }: any) {
+export function Seg({ selected, onPress, children, colors, theme, disabled }: any) {
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       style={[
         styles.segButton(colors),
-        selected ? styles.segButtonSelected(colors) : styles.segButtonUnselected(colors)
+        selected ? styles.segButtonSelected(colors) : styles.segButtonUnselected(colors),
+        disabled && { opacity: 0.5 }
       ]}
     >
       <Text style={[
