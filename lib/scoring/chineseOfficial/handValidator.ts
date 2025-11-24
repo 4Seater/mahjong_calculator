@@ -27,9 +27,9 @@ import {
   isThreeSuitedTerminalChows,
   MeldKind 
 } from './melds';
-import { chineseOfficialFans } from '../chineseOfficialFans';
+import { chineseOfficialFans } from './chineseOfficialFans';
 import { calculateHandScore, playerIdToPlayer } from './scoringEngine';
-import { WinType } from '../chineseOfficialTypes';
+import { WinType } from './chineseOfficialTypes';
 import * as fanDetectors from './fanDetectors';
 import { FanDetectionEngine } from './fanDetectionEngine';
 

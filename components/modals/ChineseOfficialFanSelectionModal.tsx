@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, ScrollView, Modal, TouchableOpacity, TouchableWithoutFeedback, Switch, Alert, Dimensions, StyleSheet } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { chineseOfficialFans } from '@/lib/scoring/chineseOfficialFans';
+import { chineseOfficialFans } from '@/lib/scoring/chineseOfficial/chineseOfficialFans';
 import { getColors } from '@/constants/colors';
-import type { Fan } from '@/lib/scoring/chineseOfficialTypes';
+import type { Fan } from '@/lib/scoring/chineseOfficial/chineseOfficialTypes';
 
 interface ChineseOfficialFanSelectionModalProps {
   visible: boolean;

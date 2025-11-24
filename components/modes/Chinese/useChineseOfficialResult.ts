@@ -1,9 +1,9 @@
 import { useMemo, useEffect } from 'react';
-import { computeChineseOfficial } from '@/lib/scoring/chineseOfficialEngine';
+import { computeChineseOfficial } from '@/lib/scoring/chineseOfficial/chineseOfficialEngine';
 import { OptimalScorer } from '@/lib/scoring/chineseOfficial/optimalSolver';
 import { isValidHand, detectFans } from '@/lib/scoring/chineseOfficial/handValidator';
 import type { Hand } from '@/lib/scoring/chineseOfficial/tiles';
-import type { ChineseOfficialResult } from '@/lib/scoring/chineseOfficialTypes';
+import type { ChineseOfficialResult } from '@/lib/scoring/chineseOfficial/chineseOfficialTypes';
 import type { ScoringOutcome } from '@/lib/scoring/chineseOfficial/optimalSolver';
 
 interface UseChineseOfficialResultParams {

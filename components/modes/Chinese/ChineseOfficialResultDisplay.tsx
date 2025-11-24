@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from '../../ScoreCalculatorCard.styles';
-import type { ChineseOfficialResult } from '@/lib/scoring/chineseOfficialTypes';
+import type { ChineseOfficialResult } from '@/lib/scoring/chineseOfficial/chineseOfficialTypes';
 import type { Hand } from '@/lib/scoring/chineseOfficial/tiles';
 import ChineseOfficialClearButton from './ChineseOfficialClearButton';
 

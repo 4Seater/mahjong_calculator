@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { TileInputEngine } from '@/lib/scoring/chineseOfficial/tileInputEngine';
 import { isValidHand, detectFans } from '@/lib/scoring/chineseOfficial/handValidator';
-import { chineseOfficialFans } from '@/lib/scoring/chineseOfficialFans';
+import { chineseOfficialFans } from '@/lib/scoring/chineseOfficial/chineseOfficialFans';
 import { getColors } from '@/constants/colors';
 import type { Hand } from '@/lib/scoring/chineseOfficial/tiles';
 

@@ -28,8 +28,8 @@ import {
   isThreeSuitedTerminalChows,
   MeldKind
 } from './melds';
-import { Fan } from '../chineseOfficialTypes';
-import { chineseOfficialFans } from '../chineseOfficialFans';
+import { Fan } from './chineseOfficialTypes';
+import { chineseOfficialFans } from './chineseOfficialFans';
 
 export interface ScoringOptions {
   isSelfDraw: boolean;

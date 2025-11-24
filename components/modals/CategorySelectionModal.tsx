@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
-import { styles } from './ScoreCalculatorCard.styles';
+import { styles } from '../ScoreCalculatorCard.styles';
 import { HAND_CATEGORIES } from '@/lib/data/handCategories';
 
 interface CategorySelectionModalProps {

@@ -6,8 +6,8 @@
 
 import { Hand, Tile } from './tiles';
 import { MeldKind } from './melds';
-import { chineseOfficialFans } from '../chineseOfficialFans';
-import { Fan } from '../chineseOfficialTypes';
+import { chineseOfficialFans } from './chineseOfficialFans';
+import { Fan } from './chineseOfficialTypes';
 import * as fanDetectors from './fanDetectors';
 import * as fanHelpers from './fanHelpers';
 import { ChowDetectionEngine } from './chowDetection';

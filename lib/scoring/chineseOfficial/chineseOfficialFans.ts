@@ -1,4 +1,4 @@
-import { Fan } from './chineseOfficialTypes';
+import { Fan } from '../chineseOfficialTypes';
 
 /**
  * Complete list of Chinese Official Mahjong fans

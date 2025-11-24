@@ -7,8 +7,8 @@
  * - Payment calculation → who pays how much
  */
 
-import { WinType, Player, HandResult, Fan } from '../chineseOfficialTypes';
-import { fanPoints, getFanPointsByName } from '../chineseOfficialFans';
+import { WinType, Player, HandResult, Fan } from './chineseOfficialTypes';
+import { fanPoints, getFanPointsByName } from './chineseOfficialFans';
 
 const BASE_POINTS = 8; // Basic points everyone pays
 

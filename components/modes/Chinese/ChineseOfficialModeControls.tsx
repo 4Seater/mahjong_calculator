@@ -4,7 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from '../../ScoreCalculatorCard.styles';
 import { Row, Label, Seg } from '../../shared/CalculatorHelpers';
-import { chineseOfficialFans } from '@/lib/scoring/chineseOfficialFans';
+import { chineseOfficialFans } from '@/lib/scoring/chineseOfficial/chineseOfficialFans';
 import type { Hand, Tile } from '@/lib/scoring/chineseOfficial/tiles';
 import { TileInputEngine, getTileDisplayName } from '@/lib/scoring/chineseOfficial/tileInputEngine';
 import ChineseOfficialTilePicker from './ChineseOfficialTilePicker';

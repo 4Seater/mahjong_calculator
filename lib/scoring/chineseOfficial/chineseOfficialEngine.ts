@@ -1,6 +1,6 @@
-import { ChineseOfficialInput, ChineseOfficialResult, Fan, WinType, Player, HandResult } from './chineseOfficialTypes';
-import { chineseOfficialFans } from './chineseOfficialFans';
-import { calculateHandScore, playerIdToPlayer } from './chineseOfficial/scoringEngine';
+import { ChineseOfficialInput, ChineseOfficialResult, Fan, WinType, Player, HandResult } from '../chineseOfficial/chineseOfficialTypes';
+import { chineseOfficialFans } from '../chineseOfficial/chineseOfficialFans';
+import { calculateHandScore, playerIdToPlayer } from './scoringEngine';
 
 /**
  * Chinese Official Mahjong Scoring Engine
