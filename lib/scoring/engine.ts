@@ -68,6 +68,10 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   
   const base = sanitizeBase(input.basePoints || 0);
   const numPlayers = Math.max(2, input.numPlayers ?? 4);
+  
+  // Heavenly Hand: always treated as self-pick
+  const effectiveWinType = input.heavenlyHand ? "self_pick" : input.winType;
+  
   // Jokerless applies only if hand is jokerless AND not Singles and Pairs
   const jokerlessApplied = input.jokerless && !input.singlesAndPairs;
 
@@ -98,7 +102,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
 
   const rule: ScoreResult["rule"] = { 
     jokerlessApplied,
-    misnamedJokerApplied: input.misnamedJoker && input.winType === "discard",
+    misnamedJokerApplied: input.misnamedJoker && effectiveWinType === "discard",
     heavenlyHandApplied: input.heavenlyHand ?? false,
       wallGameApplied: Boolean(input.wallGame),
     kittyApplied: Boolean(input.kittyPayout && input.kittyPayout > 0),
@@ -110,7 +114,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   const jokerlessUsesPoints = input.customPoints?.jokerless !== undefined;
   const jokerlessMultiplier = customMults.jokerless;
   
-  if (input.winType === "self_pick") {
+  if (effectiveWinType === "self_pick") {
     // Self-pick: All players pay 2× (or custom multiplier if jokerless with multiplier mode)
     if (jokerlessUsesPoints) {
       // If jokerless is points-based, keep base multiplier
@@ -120,31 +124,27 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     }
   } else {
     // Discard win
-    if (input.misnamedJoker) {
-      rule.discarderMultiplier = customMults.misnamedJoker ?? 4;
-      rule.otherMultiplier = 0;
-      } else {
-        // Discard payout: normal discard payout
-        if (jokerlessUsesPoints) {
-          rule.discarderMultiplier = 2;
-          rule.otherMultiplier = 1;
+    // Note: misnamed joker is handled later after all multipliers are applied
+    // Discard payout: normal discard payout
+    if (jokerlessUsesPoints) {
+      rule.discarderMultiplier = 2;
+      rule.otherMultiplier = 1;
+    } else {
+      if (jokerlessApplied) {
+        if (jokerlessMultiplier) {
+          // Use custom multiplier for discarder and others
+          rule.discarderMultiplier = jokerlessMultiplier;
+          rule.otherMultiplier = jokerlessMultiplier / 2; // Others pay half of discarder
         } else {
-          if (jokerlessApplied) {
-            if (jokerlessMultiplier) {
-              // Use custom multiplier for discarder and others
-              rule.discarderMultiplier = jokerlessMultiplier;
-              rule.otherMultiplier = jokerlessMultiplier / 2; // Others pay half of discarder
-            } else {
-              // Default jokerless multipliers
-              rule.discarderMultiplier = 4;
-              rule.otherMultiplier = 2;
-            }
-          } else {
-            rule.discarderMultiplier = 2;
-            rule.otherMultiplier = 1;
-          }
+          // Default jokerless multipliers
+          rule.discarderMultiplier = 4;
+          rule.otherMultiplier = 2;
         }
+      } else {
+        rule.discarderMultiplier = 2;
+        rule.otherMultiplier = 1;
       }
+    }
   }
 
   let perLoserAmounts: ScoreResult["perLoserAmounts"];
@@ -158,7 +158,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   }
 
   let totalToWinner: number;
-  if (input.winType === "self_pick") {
+  if (effectiveWinType === "self_pick") {
     totalToWinner = (perLoserAmounts.others ?? 0) * (numPlayers - 1);
   } else {
     const otherCount = Math.max(0, numPlayers - 2);
@@ -176,7 +176,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     appliedNoExposureBonus.value = neb.value;
 
     if (neb.mode === "multiplier") {
-      if (input.winType === "self_pick") {
+      if (effectiveWinType === "self_pick") {
         perLoserAmounts.others = Math.round((perLoserAmounts.others ?? 0) * neb.value);
         totalToWinner = (perLoserAmounts.others ?? 0) * (numPlayers - 1);
       } else {
@@ -298,6 +298,31 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     exposurePenalty = Math.round(exposurePenalty * heavenlyHandMultiplier);
   }
 
+  // Apply Misnamed Joker: discarder pays custom multiplier (default 4×) of the final winner's score
+  // This must be applied AFTER all other multipliers (doubles, custom rules, heavenly hand, etc.)
+  // Others still pay their normal amount
+  // The discarder's payment REPLACES the normal discarder payment, it doesn't add to it
+  // Note: Misnamed joker only applies to discard wins (not self-pick, and not heavenly hand which is treated as self-pick)
+  if (input.misnamedJoker && effectiveWinType === "discard") {
+    const misnamedJokerMultiplier = customMults.misnamedJoker ?? 4;
+    // totalToWinner currently includes: normalDiscarderAmount + (others × otherCount)
+    // We want discarder to pay 4× totalToWinner, replacing the normal discarder amount
+    // So: new_totalToWinner = 4×totalToWinner + (others × otherCount) - normalDiscarderAmount
+    // But that's circular. Instead, we calculate:
+    // winnerScore = what winner gets with normal payments = totalToWinner (current value)
+    // discarder pays 4× winnerScore (replacing normal payment)
+    // new totalToWinner = 4×winnerScore + othersTotal
+    const otherCount = Math.max(0, numPlayers - 2);
+    const othersTotal = (perLoserAmounts.others ?? 0) * otherCount;
+    // The winner's score (what they would receive with normal discarder payment)
+    const winnerScore = totalToWinner;
+    // Discarder pays multiplier × the winner's total score (replacing normal payment)
+    perLoserAmounts.discarder = Math.round(winnerScore * misnamedJokerMultiplier);
+    // Others keep their normal amount (already calculated in perLoserAmounts.others)
+    // Recalculate totalToWinner: new discarder amount + (others amount × otherCount)
+    totalToWinner = perLoserAmounts.discarder + othersTotal;
+  }
+
   // Track flat bonuses that need to be preserved (after multipliers are applied)
   const flatBonusAmount = jokerlessPointsBonus + customRulesPoints - exposurePenalty;
   // Also track no-exposure flat bonus if it was added
@@ -309,7 +334,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
   
   const payerMap: Record<string, number> = {};
   
-  if (input.winType === "self_pick") {
+  if (effectiveWinType === "self_pick") {
     const payEach = perLoserAmounts.others ?? 0;
     const ids = [
       ...(input.discarderId ? [input.discarderId] : []),

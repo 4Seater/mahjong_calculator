@@ -351,7 +351,7 @@ export default function StandardModeControls({
 
       {/* Players */}
       <View style={{ marginTop: 8, opacity: wallGame ? 0.5 : 1 }}>
-        <Label colors={colors}>Players</Label>
+        <Label colors={colors}>Number of Players</Label>
         <Row style={{ justifyContent: "flex-start" }} colors={colors}>
           {[2, 3, 4].map((n) => (
             <Seg key={n} selected={numPlayers === n} onPress={() => !wallGame && onNumPlayersChange(n)} colors={colors} theme={theme} disabled={wallGame}>

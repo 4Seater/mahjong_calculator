@@ -80,6 +80,38 @@ export default function ScoreCalculatorCard({
   const [misnamedJoker, setMisnamedJoker] = useState(false);
   const [heavenlyHand, setHeavenlyHand] = useState(false);
 
+  // Handler for misnamed joker: automatically switch to discard when enabled
+  const handleMisnamedJokerChange = (value: boolean) => {
+    setMisnamedJoker(value);
+    if (value) {
+      // Mis-named joker can only happen on discard, so switch win type to discard
+      setWinType("discard");
+    }
+  };
+
+  // Handler for heavenly hand: automatically switch to self-pick when enabled
+  const handleHeavenlyHandChange = (value: boolean) => {
+    setHeavenlyHand(value);
+    if (value) {
+      // Heavenly hand is always considered self-pick, so switch win type to self-pick
+      setWinType("self_pick");
+    }
+  };
+
+  // Handler for win type: automatically disable misnamed joker if switching to self-pick
+  // and disable heavenly hand if switching to discard
+  const handleWinTypeChange = (value: WinType) => {
+    setWinType(value);
+    if (value === "self_pick" && misnamedJoker) {
+      // Mis-named joker can only happen on discard, so disable it if switching to self-pick
+      setMisnamedJoker(false);
+    }
+    if (value === "discard" && heavenlyHand) {
+      // Heavenly hand is always self-pick, so disable it if switching to discard
+      setHeavenlyHand(false);
+    }
+  };
+
   // Tournament-specific inputs
   const [playerIds] = useState(["N", "E", "W", "S"]);
   const [tournamentWinnerId, setTournamentWinnerId] = useState<string>("N");
@@ -510,10 +542,10 @@ export default function ScoreCalculatorCard({
             selectedCustomRuleIds={selectedCustomRuleIds}
             customRuleValues={customRuleValues}
             theme={theme}
-            onWinTypeChange={setWinType}
+            onWinTypeChange={handleWinTypeChange}
             onJokerlessChange={setJokerless}
-            onMisnamedJokerChange={setMisnamedJoker}
-            onHeavenlyHandChange={setHeavenlyHand}
+            onMisnamedJokerChange={handleMisnamedJokerChange}
+            onHeavenlyHandChange={handleHeavenlyHandChange}
             onNoExposuresChange={setNoExposures}
             onExposurePenaltyEnabledChange={setExposurePenaltyEnabled}
             onExposurePenaltyPerExposureChange={setExposurePenaltyPerExposure}
