@@ -27,7 +27,7 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
       misnamedJokerApplied: false,
       heavenlyHandApplied: false,
       wallGameApplied: true,
-      kittyApplied: (input.displayMode === 'points' || (input.kittyPayout && input.kittyPayout > 0)) || false,
+      kittyApplied: Boolean(input.displayMode === 'points' || (input.kittyPayout && input.kittyPayout > 0)),
       doublesApplied: 0,
       eastDoubleApplied: false
     };
@@ -60,10 +60,9 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
       payerMap: {},
       kittyPayout: kittyTotalPayout,
       kittyPerPlayer: kittyPerPlayer,
-      appliedNoExposureBonus: false,
+      appliedNoExposureBonus: { applied: false },
       jokerlessPointsBonus: 0,
       exposurePenalty: 0,
-      customRulesApplied: []
     };
   }
   
@@ -101,8 +100,8 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     jokerlessApplied,
     misnamedJokerApplied: input.misnamedJoker && input.winType === "discard",
     heavenlyHandApplied: input.heavenlyHand ?? false,
-    wallGameApplied: input.wallGame ?? false,
-    kittyApplied: (input.kittyPayout && input.kittyPayout > 0) ?? false,
+      wallGameApplied: Boolean(input.wallGame),
+    kittyApplied: Boolean(input.kittyPayout && input.kittyPayout > 0),
     doublesApplied: totalDoubles,
     eastDoubleApplied: input.eastDouble ?? false
   };

@@ -76,6 +76,8 @@ export interface ScoreResult {
     jokerlessApplied: boolean;
     misnamedJokerApplied?: boolean;
     heavenlyHandApplied?: boolean; // Whether Heavenly Hand is applied (2× payout)
+    wallGameApplied?: boolean; // Whether wall game is enabled (no wins)
+    kittyApplied?: boolean; // Whether kitty is enabled
     doublesApplied?: number; // Total number of doubles applied
     eastDoubleApplied?: boolean; // Whether East's double is applied
   };
