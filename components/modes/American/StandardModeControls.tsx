@@ -152,11 +152,12 @@ export default function StandardModeControls({
         {/* Heavenly Hand */}
         <RowWithEdit 
           colors={colors} 
-          onEdit={undefined}
-          editKey={null}
+          onEdit={() => onEditRule('heavenlyHand', 'multiplier', 2)}
+          editKey="heavenlyHand"
+          disabled={wallGame}
         >
           <View style={{ flex: 1 }}>
-            <Label colors={colors} sub="Wins by East before or right after the Charleston are considered self-picked. Winner receives 2× payout from all players.">
+            <Label colors={colors} sub={`Wins by East before or right after the Charleston are considered self-picked. Winner receives ${customRuleValues.heavenlyHand?.value || 2}× payout from all players.`}>
               Heavenly Hand
             </Label>
           </View>
@@ -167,10 +168,6 @@ export default function StandardModeControls({
             trackColor={{ false: colors.border, true: colors.gobutton }}
             thumbColor={heavenlyHand ? colors.card : colors.textSecondary}
           />
-          {/* Invisible placeholder to align with other toggles */}
-          <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
-            <FontAwesome5 name="edit" size={14} color="transparent" />
-          </View>
         </RowWithEdit>
       </View>
 

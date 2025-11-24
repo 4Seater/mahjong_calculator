@@ -97,6 +97,7 @@ export function useStandardResult({
       customMultipliers: {
         jokerless: customRuleValues.jokerless?.type === 'multiplier' ? customRuleValues.jokerless.value : undefined,
         misnamedJoker: customRuleValues.misnamedJoker?.type === 'multiplier' ? customRuleValues.misnamedJoker.value : undefined,
+        heavenlyHand: customRuleValues.heavenlyHand?.type === 'multiplier' ? customRuleValues.heavenlyHand.value : undefined,
         lastTileFromWall: customRuleValues.lastTileFromWall?.type === 'multiplier' ? customRuleValues.lastTileFromWall.value : undefined,
         lastTileClaim: customRuleValues.lastTileClaim?.type === 'multiplier' ? customRuleValues.lastTileClaim.value : undefined,
         robbingTheJoker: customRuleValues.robbingTheJoker?.type === 'multiplier' ? customRuleValues.robbingTheJoker.value : undefined,

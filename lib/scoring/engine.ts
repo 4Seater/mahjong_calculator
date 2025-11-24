@@ -283,24 +283,25 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     }
   }
   
-  // Apply Heavenly Hand: 2× payout from all players
+  // Apply Heavenly Hand: custom multiplier (default 2×) payout from all players
+  const heavenlyHandMultiplier = input.heavenlyHand ? (input.customMultipliers?.heavenlyHand ?? 2) : 1;
   if (input.heavenlyHand) {
     if (perLoserAmounts.others !== undefined) {
-      perLoserAmounts.others = Math.round(perLoserAmounts.others * 2);
+      perLoserAmounts.others = Math.round(perLoserAmounts.others * heavenlyHandMultiplier);
     }
     if (perLoserAmounts.discarder !== undefined) {
-      perLoserAmounts.discarder = Math.round(perLoserAmounts.discarder * 2);
+      perLoserAmounts.discarder = Math.round(perLoserAmounts.discarder * heavenlyHandMultiplier);
     }
-    totalToWinner = Math.round(totalToWinner * 2);
+    totalToWinner = Math.round(totalToWinner * heavenlyHandMultiplier);
     // Apply to flat bonuses as well
-    jokerlessPointsBonus = Math.round(jokerlessPointsBonus * 2);
-    exposurePenalty = Math.round(exposurePenalty * 2);
+    jokerlessPointsBonus = Math.round(jokerlessPointsBonus * heavenlyHandMultiplier);
+    exposurePenalty = Math.round(exposurePenalty * heavenlyHandMultiplier);
   }
 
   // Track flat bonuses that need to be preserved (after multipliers are applied)
   const flatBonusAmount = jokerlessPointsBonus + customRulesPoints - exposurePenalty;
   // Also track no-exposure flat bonus if it was added
-  const noExposureFlatBonus = (input.noExposures && neb && neb.mode === "flat") ? Math.round(neb.value * doublesMultiplier * customRulesMultiplier * (input.heavenlyHand ? 2 : 1)) : 0;
+  const noExposureFlatBonus = (input.noExposures && neb && neb.mode === "flat") ? Math.round(neb.value * doublesMultiplier * customRulesMultiplier * heavenlyHandMultiplier) : 0;
 
   // Determine if winner is East (for East's double rule)
   // Use explicit flag if provided, otherwise check winnerId

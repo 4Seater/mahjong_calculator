@@ -38,6 +38,7 @@ export interface ScoreInput {
   customMultipliers?: {
     jokerless?: number; // Custom multiplier for jokerless (default 2 for self-pick, 4 for discard)
     misnamedJoker?: number; // Custom multiplier for mis-named joker (default 4)
+    heavenlyHand?: number; // Custom multiplier for heavenly hand (default 2)
     lastTileFromWall?: number; // Custom multiplier for last tile from wall (default 2)
     lastTileClaim?: number; // Custom multiplier for last tile claim (default 2)
     robbingTheJoker?: number; // Custom multiplier for robbing the joker (default 2)
