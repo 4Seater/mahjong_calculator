@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mahjong Calculator",
     "slug": "mahjong-calculator",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/calculator-logo.png",
     "userInterfaceStyle": "light",
@@ -16,6 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "buildNumber": "1",
       "bundleIdentifier": "com.mahjongcalculator.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false

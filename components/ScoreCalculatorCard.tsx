@@ -71,6 +71,7 @@ export default function ScoreCalculatorCard({
   
   // Mode selection - default to standard
   const [mode, setMode] = useState<Mode>("standard");
+  const [americanSubMode, setAmericanSubMode] = useState<"standard" | "other">("standard");
 
   // Inputs
   const [basePoints, setBasePoints] = useState<string>("");
@@ -402,7 +403,9 @@ export default function ScoreCalculatorCard({
             onPress={() => setShowModeSelectorModal(true)}
           >
             <Text style={styles.dropdownText(colors)}>
-              {mode === "standard" ? "American" : mode === "tournament" ? "Tournament" : "Chinese Official"}
+              {mode === "standard" 
+                ? `American - ${americanSubMode === "standard" ? "NMJL" : "Other"}` 
+                : mode === "tournament" ? "Tournament" : "Chinese Official"}
             </Text>
             <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -726,6 +729,7 @@ export default function ScoreCalculatorCard({
     <ModeSelectorModal
       visible={showModeSelectorModal}
       currentMode={mode}
+      currentAmericanSubMode={americanSubMode}
       theme={theme}
       onClose={() => setShowModeSelectorModal(false)}
       onSelectMode={(selectedMode) => {
@@ -733,6 +737,9 @@ export default function ScoreCalculatorCard({
         if (selectedMode === "standard") {
           setDisplayMode("currency"); // Reset display format to money when switching to standard
         }
+      }}
+      onSelectAmericanSubMode={(subMode) => {
+        setAmericanSubMode(subMode);
       }}
     />
 

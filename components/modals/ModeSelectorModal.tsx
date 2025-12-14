@@ -10,17 +10,21 @@ type AmericanSubMode = 'standard' | 'other';
 interface ModeSelectorModalProps {
   visible: boolean;
   currentMode: CalculatorMode;
+  currentAmericanSubMode: AmericanSubMode;
   theme: 'light' | 'dark';
   onClose: () => void;
   onSelectMode: (mode: CalculatorMode) => void;
+  onSelectAmericanSubMode: (subMode: AmericanSubMode) => void;
 }
 
 export default function ModeSelectorModal({
   visible,
   currentMode,
+  currentAmericanSubMode,
   theme,
   onClose,
   onSelectMode,
+  onSelectAmericanSubMode,
 }: ModeSelectorModalProps) {
   const colors = getColors(theme);
   const [showAmericanSubmenu, setShowAmericanSubmenu] = useState(false);
@@ -37,6 +41,7 @@ export default function ModeSelectorModal({
 
   const handleSelectAmericanSubmode = (submode: AmericanSubMode) => {
     if (submode === 'standard') {
+      onSelectAmericanSubMode(submode);
       onSelectMode('standard');
       onClose();
     }
@@ -51,7 +56,6 @@ export default function ModeSelectorModal({
   const modes: { id: CalculatorMode; label: string; disabled?: boolean }[] = [
     { id: 'standard', label: 'American' },
     { id: 'tournament', label: 'Tournament' },
-    { id: 'chineseOfficial', label: 'Chinese Official', disabled: true },
   ];
 
   // Reset submenu when modal closes
@@ -88,7 +92,7 @@ export default function ModeSelectorModal({
               <>
                 {americanSubmodes.map((submodeOption) => {
                   const isDisabled = submodeOption.disabled;
-                  const isSelected = currentMode === 'standard' && submodeOption.id === 'standard';
+                  const isSelected = currentMode === 'standard' && submodeOption.id === currentAmericanSubMode;
                   return (
                     <TouchableOpacity
                       key={submodeOption.id}
