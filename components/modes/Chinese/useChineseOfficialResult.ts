@@ -7,7 +7,7 @@ import type { ChineseOfficialResult } from '@/lib/scoring/chineseOfficial/chines
 import type { ScoringOutcome } from '@/lib/scoring/chineseOfficial/optimalSolver';
 
 interface UseChineseOfficialResultParams {
-  mode: 'standard' | 'tournament' | 'chineseOfficial';
+  mode: 'standard' | 'international' | 'tournament' | 'chineseOfficial';
   inputMode: 'fanSelection' | 'tileInput';
   selectedFans: Set<string>;
   flowerCount: string;

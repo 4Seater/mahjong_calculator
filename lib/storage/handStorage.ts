@@ -47,3 +47,14 @@ export const clearAllHands = async (): Promise<void> => {
   }
 };
 
+export const clearHandsForYear = async (year: string): Promise<void> => {
+  try {
+    const hands = await getSavedHands();
+    const remaining = hands.filter((hand) => (hand.cardYear ?? '2025') !== year);
+    await AsyncStorage.setItem(HANDS_STORAGE_KEY, JSON.stringify(remaining));
+  } catch (error) {
+    console.error('Error clearing hands for year:', error);
+    throw error;
+  }
+};
+

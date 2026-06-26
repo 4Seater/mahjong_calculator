@@ -4,7 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from '../ScoreCalculatorCard.styles';
 
-type CalculatorMode = 'standard' | 'tournament' | 'chineseOfficial';
+type CalculatorMode = 'standard' | 'tournament' | 'international' | 'chineseOfficial';
 type AmericanSubMode = 'standard' | 'other';
 
 interface ModeSelectorModalProps {
@@ -54,8 +54,9 @@ export default function ModeSelectorModal({
   ];
 
   const modes: { id: CalculatorMode; label: string; disabled?: boolean }[] = [
-    { id: 'standard', label: 'American' },
+    { id: 'standard', label: 'National Mahjong League' },
     { id: 'tournament', label: 'Tournament' },
+    { id: 'international', label: 'International Mahjong' },
   ];
 
   // Reset submenu when modal closes
@@ -80,7 +81,7 @@ export default function ModeSelectorModal({
         <View style={styles.modalContent(colors)}>
           <View style={styles.modalHeader(colors)}>
             <Text style={styles.modalTitle(colors)}>
-              {showAmericanSubmenu ? 'Select American Mode' : 'Select Calculator Mode'}
+              {showAmericanSubmenu ? 'Select National Mahjong League Mode' : 'Select Calculator Mode'}
             </Text>
             <TouchableOpacity onPress={showAmericanSubmenu ? () => setShowAmericanSubmenu(false) : onClose}>
               <FontAwesome5 name={showAmericanSubmenu ? "arrow-left" : "times"} size={20} color={colors.text} />

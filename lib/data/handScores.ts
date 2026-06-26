@@ -1,0 +1,74 @@
+import type { AmericanHandYear } from './handCategories';
+
+/**
+ * Card hand values (base points) keyed by category + line number per year.
+ * Key format: `${categoryId}:${lineNumber}`
+ */
+export const HAND_SCORES_BY_YEAR: Record<AmericanHandYear, Record<string, number>> = {
+  '2025': {},
+  '2026': {
+    '2026:1': 25,
+    '2026:2': 25,
+    '2026:3': 25,
+    '2026:4': 30,
+    '2468:1': 25,
+    '2468:2': 30,
+    '2468:3': 30,
+    '2468:4': 25,
+    '2468:5': 25,
+    '2468:6': 25,
+    '2468:7': 30,
+    '2468:8': 30,
+    'any_like_numbers:1': 30,
+    'any_like_numbers:2': 25,
+    'any_like_numbers:3': 25,
+    'quints:1': 40,
+    'quints:2': 45,
+    'quints:3': 40,
+    'consecutive_run:1': 25,
+    'consecutive_run:2': 25,
+    'consecutive_run:3': 25,
+    'consecutive_run:4': 25,
+    'consecutive_run:5': 25,
+    'consecutive_run:6': 30,
+    'consecutive_run:7': 25,
+    'consecutive_run:8': 35,
+    '13579:1': 25,
+    '13579:2': 25,
+    '13579:3': 30,
+    '13579:4': 25,
+    '13579:5': 25,
+    '13579:6': 25,
+    '13579:7': 30,
+    '13579:8': 35,
+    '13579:9': 30,
+    'winds_dragons:1': 25,
+    'winds_dragons:2': 25,
+    'winds_dragons:3': 25,
+    'winds_dragons:4': 25,
+    'winds_dragons:5': 25,
+    'winds_dragons:6': 25,
+    'winds_dragons:7': 25,
+    'winds_dragons:8': 30,
+    '369:1': 25,
+    '369:2': 25,
+    '369:3': 25,
+    '369:4': 30,
+    '369:5': 25,
+    '369:6': 30,
+    'singles_pairs:1': 50,
+    'singles_pairs:2': 50,
+    'singles_pairs:3': 50,
+    'singles_pairs:4': 50,
+    'singles_pairs:5': 50,
+    'singles_pairs:6': 75,
+  },
+};
+
+export const getHandScore = (
+  categoryId: string,
+  lineNumber: string,
+  year: AmericanHandYear
+): number | undefined => {
+  return HAND_SCORES_BY_YEAR[year][`${categoryId}:${lineNumber}`];
+};

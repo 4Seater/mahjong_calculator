@@ -3,7 +3,7 @@ import { computeTournament } from '@/lib/scoring/engine';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 
 interface UseTournamentResultParams {
-  mode: 'standard' | 'tournament' | 'chineseOfficial';
+  mode: 'standard' | 'international' | 'tournament' | 'chineseOfficial';
   basePoints: string;
   winType: 'self_pick' | 'discard';
   tournamentWinnerId: string;

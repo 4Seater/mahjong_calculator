@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal, Alert, Switch } from "react-native";
 import { styles } from "./ScoreCalculatorCard.styles";
 import type { WinType, ScoreResult } from "@/lib/scoring/types";
@@ -28,13 +28,16 @@ import CustomRuleModal from "./modals/CustomRuleModal";
 import HandSelectionModal from "./modals/HandSelectionModal";
 import CategorySelectionModal from "./modals/CategorySelectionModal";
 import ModeSelectorModal from "./modals/ModeSelectorModal";
+import AmericanYearSelectionModal from "./modals/AmericanYearSelectionModal";
 import SettingsMenuModal from "./modals/SettingsMenuModal";
 import { Row, Label, Seg, RowWithEdit } from "./shared/CalculatorHelpers";
 import CalculatorHeader from "./CalculatorHeader";
 import HandSelectionUI from "./HandSelectionUI";
 import BasePointsInput from "./BasePointsInput";
+import type { AmericanHandYear } from '@/lib/data/handCategories';
+import { getHandScore } from '@/lib/data/handScores';
 
-type Mode = "standard" | "tournament" | "chineseOfficial";
+type Mode = "standard" | "tournament" | "international" | "chineseOfficial";
 
 type Props = {
   
@@ -72,6 +75,16 @@ export default function ScoreCalculatorCard({
   // Mode selection - default to standard
   const [mode, setMode] = useState<Mode>("standard");
   const [americanSubMode, setAmericanSubMode] = useState<"standard" | "other">("standard");
+
+  // American - NMJL card year dropdown affects only Hand Category options.
+  const [americanHandYear, setAmericanHandYear] = useState<AmericanHandYear>("2025");
+  const [showAmericanYearModal, setShowAmericanYearModal] = useState(false);
+
+  // International Mahjong card year dropdown affects only Hand Category options.
+  const [internationalHandYear, setInternationalHandYear] = useState<AmericanHandYear>("2026");
+  const [showInternationalYearModal, setShowInternationalYearModal] = useState(false);
+
+  const activeHandYear = mode === "international" ? internationalHandYear : americanHandYear;
 
   // Inputs
   const [basePoints, setBasePoints] = useState<string>("");
@@ -161,7 +174,31 @@ export default function ScoreCalculatorCard({
     handName,
     setHandName,
     availableHands,
-  } = useHandSelection();
+  } = useHandSelection(activeHandYear);
+
+  // Auto-fill Base Points from the selected card year, category, and line number.
+  useEffect(() => {
+    if (selectedCategoryId && selectedHand) {
+      const score = getHandScore(selectedCategoryId, selectedHand, activeHandYear);
+      if (score !== undefined) {
+        setBasePoints(String(score));
+      }
+    }
+  }, [selectedCategoryId, selectedHand, activeHandYear]);
+
+  // Clear Base Points when the line selection is reset (category or year change).
+  const prevSelectedHandRef = useRef(selectedHand);
+  useEffect(() => {
+    if (prevSelectedHandRef.current && !selectedHand) {
+      setBasePoints("");
+    }
+    prevSelectedHandRef.current = selectedHand;
+  }, [selectedHand]);
+
+  // Singles and Pairs category suppresses jokerless bonus in the scoring engine.
+  useEffect(() => {
+    setSinglesAndPairs(selectedCategoryId === "singles_pairs");
+  }, [selectedCategoryId]);
 
   // Custom rules using custom hook
   const {
@@ -368,7 +405,7 @@ export default function ScoreCalculatorCard({
       if (wallGame && !isWallGame) {
         setIsWallGame(true);
       }
-    } else if (mode === "standard") {
+    } else if (mode === "standard" || mode === "international") {
       setDisplayMode("currency");
       // Sync wall game state when switching to standard mode
       if (isWallGame && !wallGame) {
@@ -379,7 +416,7 @@ export default function ScoreCalculatorCard({
 
   // Disable kitty when points mode is selected (no kitty in points mode)
   useEffect(() => {
-    if (displayMode === "points" && (mode === "standard" || mode === "tournament")) {
+    if (displayMode === "points" && (mode === "standard" || mode === "international" || mode === "tournament")) {
       setKittyEnabled(false);
     }
   }, [displayMode, mode]);
@@ -403,16 +440,48 @@ export default function ScoreCalculatorCard({
             onPress={() => setShowModeSelectorModal(true)}
           >
             <Text style={styles.dropdownText(colors)}>
-              {mode === "standard" 
-                ? `American - ${americanSubMode === "standard" ? "NMJL" : "Other"}` 
-                : mode === "tournament" ? "Tournament" : "Chinese Official"}
+              {mode === "standard"
+                ? (americanSubMode === "standard" ? "National Mahjong League" : "National Mahjong League - Other")
+                : mode === "international"
+                  ? "International Mahjong"
+                  : mode === "tournament"
+                    ? "Tournament"
+                    : "Chinese Official"}
             </Text>
             <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        {/* Currency/Points Selector - Only show for standard mode, tournament mode is always points */}
-        {mode === "standard" && (
+        {/* Year Selection — NMJL & Tournament share the same card year (affects Hand Category only) */}
+        {((mode === "standard" && americanSubMode === "standard") || mode === "tournament") && (
+          <View style={styles.section}>
+            <Label colors={colors}>Year</Label>
+            <TouchableOpacity
+              style={styles.dropdownButton(colors)}
+              onPress={() => setShowAmericanYearModal(true)}
+            >
+              <Text style={styles.dropdownText(colors)}>{americanHandYear}</Text>
+              <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* International Mahjong - Year Selection (affects Hand Category options only) */}
+        {mode === "international" && (
+          <View style={styles.section}>
+            <Label colors={colors}>Year</Label>
+            <TouchableOpacity
+              style={styles.dropdownButton(colors)}
+              onPress={() => setShowInternationalYearModal(true)}
+            >
+              <Text style={styles.dropdownText(colors)}>{internationalHandYear}</Text>
+              <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Currency/Points Selector - Only show for standard/international mode, tournament mode is always points */}
+        {(mode === "standard" || mode === "international") && (
         <View style={styles.section}>
             <Label colors={colors}>Score format</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
@@ -511,6 +580,7 @@ export default function ScoreCalculatorCard({
               showHandModal={showHandModal}
               theme={theme}
               wallGame={wallGame}
+              handYear={activeHandYear}
               onShowCategoryModal={() => setShowCategoryModal(true)}
               onShowHandModal={() => setShowHandModal(true)}
             />
@@ -524,7 +594,7 @@ export default function ScoreCalculatorCard({
         />
 
         {/* Standard Mode Controls */}
-        {mode === "standard" && (
+        {(mode === "standard" || mode === "international") && (
           <StandardModeControls
             wallGame={wallGame}
             winType={winType}
@@ -650,7 +720,7 @@ export default function ScoreCalculatorCard({
 
       {/* Output */}
       <View style={styles.resultsSection(colors)}>
-        {mode === "standard" ? (
+        {mode === "standard" || mode === "international" ? (
           <StandardResultDisplay
             result={result}
             winType={winType}
@@ -671,6 +741,10 @@ export default function ScoreCalculatorCard({
             kittyPayout={kittyEnabled ? Number(kittyPayout || 10) : undefined}
             saveSuccess={saveSuccess}
             onSaveSuccess={setSaveSuccess}
+            cardYear={activeHandYear}
+            categoryId={selectedCategoryId}
+            selectedHand={selectedHand}
+            calculatorMode={mode === "international" ? "international" : "standard"}
             onClear={clearStandard}
           />
         ) : mode === "tournament" ? (
@@ -743,10 +817,29 @@ export default function ScoreCalculatorCard({
       }}
     />
 
+    {/* American Year Selector Modal */}
+    <AmericanYearSelectionModal
+      visible={showAmericanYearModal}
+      currentYear={americanHandYear}
+      theme={theme}
+      onClose={() => setShowAmericanYearModal(false)}
+      onSelectYear={(year) => setAmericanHandYear(year)}
+    />
+
+    {/* International Year Selector Modal */}
+    <AmericanYearSelectionModal
+      visible={showInternationalYearModal}
+      currentYear={internationalHandYear}
+      theme={theme}
+      onClose={() => setShowInternationalYearModal(false)}
+      onSelectYear={(year) => setInternationalHandYear(year)}
+    />
+
     {/* Category Selection Modal */}
     <CategorySelectionModal
       visible={showCategoryModal}
       selectedCategoryId={selectedCategoryId}
+      handYear={activeHandYear}
       theme={theme}
       onClose={() => setShowCategoryModal(false)}
       onSelectCategory={(categoryId) => {
@@ -760,6 +853,7 @@ export default function ScoreCalculatorCard({
       selectedCategoryId={selectedCategoryId}
       selectedHand={selectedHand}
       availableHands={availableHands}
+      handYear={activeHandYear}
       theme={theme}
       onClose={() => setShowHandModal(false)}
       onSelectHand={(handNumber) => {

@@ -6,6 +6,8 @@ import type { ScoreResult } from '@/lib/scoring/types';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 import StandardSaveHand from './StandardSaveHand';
 import StandardClearButton from './StandardClearButton';
+import type { AmericanHandYear } from '@/lib/data/handCategories';
+import type { SavedHand } from '@/lib/types/game';
 
 interface StandardResultDisplayProps {
   result: ScoreResult;
@@ -28,6 +30,10 @@ interface StandardResultDisplayProps {
   kittyPayout?: number;
   saveSuccess: boolean;
   onSaveSuccess: (success: boolean) => void;
+  cardYear: AmericanHandYear;
+  categoryId: string;
+  selectedHand: string;
+  calculatorMode: SavedHand['mode'];
   // Clear button props
   onClear: () => void;
 }
@@ -52,6 +58,10 @@ export default function StandardResultDisplay({
   kittyPayout,
   saveSuccess,
   onSaveSuccess,
+  cardYear,
+  categoryId,
+  selectedHand,
+  calculatorMode,
   onClear,
 }: StandardResultDisplayProps) {
   const colors = getColors(theme);
@@ -296,7 +306,10 @@ export default function StandardResultDisplay({
         noExposures={noExposures}
         result={result}
         displayMode={displayMode}
-        mode="standard"
+        mode={calculatorMode}
+        cardYear={cardYear}
+        categoryId={categoryId}
+        selectedHand={selectedHand}
         standardWinnerExposureCount={standardWinnerExposureCount}
         wallGame={wallGame}
         kittyPayout={kittyPayout}

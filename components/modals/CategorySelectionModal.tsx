@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from '../ScoreCalculatorCard.styles';
-import { HAND_CATEGORIES } from '@/lib/data/handCategories';
+import { getHandCategoriesByYear, type AmericanHandYear } from '@/lib/data/handCategories';
 
 interface CategorySelectionModalProps {
   visible: boolean;
   selectedCategoryId: string | null;
+  handYear: AmericanHandYear;
   theme: 'light' | 'dark';
   onClose: () => void;
   onSelectCategory: (categoryId: string) => void;
@@ -16,6 +17,7 @@ interface CategorySelectionModalProps {
 export default function CategorySelectionModal({
   visible,
   selectedCategoryId,
+  handYear,
   theme,
   onClose,
   onSelectCategory,
@@ -47,7 +49,7 @@ export default function CategorySelectionModal({
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalScrollView}>
-            {HAND_CATEGORIES.map((category) => (
+            {getHandCategoriesByYear(handYear).map((category) => (
               <TouchableOpacity
                 key={category.id}
                 style={[

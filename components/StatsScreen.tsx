@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getColors } from '@/constants/colors';
-import { getSavedHands, deleteHand, clearAllHands } from '@/lib/storage/handStorage';
+import { getSavedHands, deleteHand, clearHandsForYear } from '@/lib/storage/handStorage';
 import { SavedHand } from '@/lib/types/game';
 import { calculateStats } from '@/lib/utils/stats';
+import {
+  CARD_YEARS,
+  filterHandsByYear,
+  sortHandsByCardOrder,
+} from '@/lib/utils/savedHandSort';
+import type { AmericanHandYear } from '@/lib/data/handCategories';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Seg } from './shared/CalculatorHelpers';
 
 interface StatsScreenProps {
   refreshTrigger?: number;
@@ -14,15 +21,21 @@ interface StatsScreenProps {
 export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
   const { theme } = useTheme();
   const colors = getColors(theme);
-  const [hands, setHands] = useState<SavedHand[]>([]);
-  const [stats, setStats] = useState(calculateStats([]));
+  const [allHands, setAllHands] = useState<SavedHand[]>([]);
+  const [selectedYear, setSelectedYear] = useState<AmericanHandYear>('2026');
   const [refreshing, setRefreshing] = useState(false);
+
+  const yearHands = useMemo(() => {
+    const filtered = filterHandsByYear(allHands, selectedYear);
+    return sortHandsByCardOrder(filtered, selectedYear);
+  }, [allHands, selectedYear]);
+
+  const stats = useMemo(() => calculateStats(yearHands), [yearHands]);
 
   const loadHands = async () => {
     try {
       const savedHands = await getSavedHands();
-      setHands(savedHands);
-      setStats(calculateStats(savedHands));
+      setAllHands(savedHands);
     } catch (error) {
       console.error('Error loading hands:', error);
     }
@@ -32,7 +45,6 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
     loadHands();
   }, []);
 
-  // Refresh when refreshTrigger changes (when navigating to this screen)
   useEffect(() => {
     if (refreshTrigger !== undefined) {
       loadHands();
@@ -67,10 +79,10 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
     );
   };
 
-  const handleClearAll = () => {
+  const handleClearYear = () => {
     Alert.alert(
-      "Clear All History",
-      "Are you sure you want to delete all saved hands? This cannot be undone.",
+      `Clear ${selectedYear} History`,
+      `Are you sure you want to delete all saved hands for the ${selectedYear} card? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -78,7 +90,7 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
           style: "destructive",
           onPress: async () => {
             try {
-              await clearAllHands();
+              await clearHandsForYear(selectedYear);
               await loadHands();
             } catch (error) {
               Alert.alert("Error", "Failed to clear history.");
@@ -95,19 +107,21 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
   };
 
   const formatAmount = (amount: number, displayMode: "currency" | "points") => {
-    return displayMode === "currency" 
+    return displayMode === "currency"
       ? `$${(amount / 100).toFixed(2)}`
       : `${amount} pts`;
   };
 
-  // Get top favorite hands
   const topHands = Object.entries(stats.favoriteHands)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
 
+  const yearHandCount = (year: AmericanHandYear) =>
+    filterHandsByYear(allHands, year).length;
+
   return (
-    <ScrollView 
-      style={styles.scrollView(colors)} 
+    <ScrollView
+      style={styles.scrollView(colors)}
       contentContainerStyle={styles.scrollContent}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -115,6 +129,26 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
     >
       <View style={styles.container(colors)}>
         <Text style={styles.title(colors)}>Your Statistics</Text>
+
+        {/* Card year selector */}
+        <View style={styles.yearSelectorCard(colors)}>
+          <Text style={styles.cardTitle(colors)}>Card Year</Text>
+          <View style={styles.yearSelectorRow(colors)}>
+            {CARD_YEARS.map((year) => (
+              <Seg
+                key={year}
+                selected={selectedYear === year}
+                onPress={() => setSelectedYear(year)}
+                colors={colors}
+                theme={theme}
+              >
+                {year} ({yearHandCount(year)})
+              </Seg>
+            ))}
+          </View>
+        </View>
+
+        <Text style={styles.yearHeading(colors)}>{selectedYear} NMJL Card</Text>
 
         {/* Stats Overview */}
         <View style={styles.statsCard(colors)}>
@@ -136,14 +170,14 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
           <View style={styles.statRow(colors)}>
             <Text style={styles.statLabel(colors)}>Total Earnings:</Text>
             <Text style={styles.statValue(colors)}>
-              {hands.length > 0 ? formatAmount(stats.totalEarnings, hands[0].displayMode) : '0'}
+              {yearHands.length > 0 ? formatAmount(stats.totalEarnings, yearHands[0].displayMode) : '0'}
             </Text>
           </View>
           <View style={styles.statRow(colors)}>
             <Text style={styles.statLabel(colors)}>Average Win Value:</Text>
             <Text style={styles.statValue(colors)}>
-              {stats.averageHandValue > 0 
-                ? (hands.length > 0 ? formatAmount(stats.averageHandValue, hands[0].displayMode) : '0')
+              {stats.averageHandValue > 0
+                ? (yearHands.length > 0 ? formatAmount(stats.averageHandValue, yearHands[0].displayMode) : '0')
                 : '0'}
             </Text>
           </View>
@@ -183,20 +217,22 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
           </View>
         )}
 
-        {/* Hand History */}
+        {/* Hand History — sorted by card order */}
         <View style={styles.historySection(colors)}>
           <View style={styles.historyHeader(colors)}>
-            <Text style={styles.cardTitle(colors)}>Hand History</Text>
-            {hands.length > 0 && (
-              <TouchableOpacity onPress={handleClearAll} style={styles.clearButton(colors)}>
-                <Text style={styles.clearButtonText(colors)}>Clear All</Text>
+            <Text style={styles.cardTitle(colors)}>{selectedYear} Hand History</Text>
+            {yearHands.length > 0 && (
+              <TouchableOpacity onPress={handleClearYear} style={styles.clearButton(colors)}>
+                <Text style={styles.clearButtonText(colors)}>Clear {selectedYear}</Text>
               </TouchableOpacity>
             )}
           </View>
-          {hands.length === 0 ? (
-            <Text style={styles.emptyText(colors)}>No hands saved yet. Save a hand from the calculator to see it here.</Text>
+          {yearHands.length === 0 ? (
+            <Text style={styles.emptyText(colors)}>
+              No hands saved for the {selectedYear} card yet. Save a hand from the calculator with Year set to {selectedYear}.
+            </Text>
           ) : (
-            hands.slice().reverse().map((hand) => (
+            yearHands.map((hand) => (
               <View key={hand.id} style={styles.handCard(colors)}>
                 <View style={styles.handHeader(colors)}>
                   <View style={{ flex: 1 }}>
@@ -248,6 +284,27 @@ const styles = {
     fontWeight: '700' as const,
     color: colors.text,
     marginBottom: 8,
+  }),
+  yearSelectorCard: (colors: any) => ({
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  }),
+  yearSelectorRow: (colors: any) => ({
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 8,
+  }),
+  yearHeading: (colors: any) => ({
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: colors.text,
+    marginTop: 4,
   }),
   statsCard: (colors: any) => ({
     backgroundColor: colors.card,
@@ -354,4 +411,3 @@ const styles = {
     color: colors.primary,
   }),
 };
-

@@ -1,3 +1,5 @@
+import type { AmericanHandYear } from '@/lib/data/handCategories';
+
 export interface SavedHand {
   id: string;
   timestamp: number;
@@ -9,7 +11,13 @@ export interface SavedHand {
   noExposures: boolean;
   totalToWinner: number;
   displayMode: "currency" | "points";
-  mode: "standard" | "tournament";
+  mode: "standard" | "tournament" | "international";
+  /** NMJL card year used when the hand was saved. */
+  cardYear?: AmericanHandYear;
+  /** Hand category id from the card (for statistics sorting). */
+  categoryId?: string;
+  /** Line number on the card (for statistics sorting). */
+  lineNumber?: number;
   // Additional modifiers
   jokerlessAsPoints?: boolean;
   jokerlessBonusPoints?: number;

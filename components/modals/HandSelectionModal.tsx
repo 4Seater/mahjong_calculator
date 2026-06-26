@@ -3,13 +3,14 @@ import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from '../ScoreCalculatorCard.styles';
-import { getCategoryById, formatHandName } from '@/lib/data/handCategories';
+import { getCategoryById, formatHandName, type AmericanHandYear } from '@/lib/data/handCategories';
 
 interface HandSelectionModalProps {
   visible: boolean;
   selectedCategoryId: string | null;
   selectedHand: string | null;
   availableHands: string[];
+  handYear: AmericanHandYear;
   theme: 'light' | 'dark';
   onClose: () => void;
   onSelectHand: (handNumber: string) => void;
@@ -20,6 +21,7 @@ export default function HandSelectionModal({
   selectedCategoryId,
   selectedHand,
   availableHands,
+  handYear,
   theme,
   onClose,
   onSelectHand,
@@ -46,7 +48,7 @@ export default function HandSelectionModal({
         <View style={styles.modalContent(colors)}>
           <View style={styles.modalHeader(colors)}>
             <Text style={styles.modalTitle(colors)}>
-              Select Hand {selectedCategoryId ? `(${getCategoryById(selectedCategoryId)?.name})` : ''}
+              Select Hand {selectedCategoryId ? `(${getCategoryById(selectedCategoryId, handYear)?.name})` : ''}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <FontAwesome5 name="times" size={20} color={colors.text} />
@@ -61,7 +63,7 @@ export default function HandSelectionModal({
               </View>
             ) : (
               availableHands.map((handNumber) => {
-                const formattedName = formatHandName(selectedCategoryId || '', handNumber);
+                const formattedName = formatHandName(selectedCategoryId || '', handNumber, handYear);
                 return (
                   <TouchableOpacity
                     key={handNumber}

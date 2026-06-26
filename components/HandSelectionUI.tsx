@@ -4,12 +4,13 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from './ScoreCalculatorCard.styles';
 import { Label } from './shared/CalculatorHelpers';
-import { getCategoryById } from '@/lib/data/handCategories';
+import { getCategoryById, type AmericanHandYear } from '@/lib/data/handCategories';
 
 interface HandSelectionUIProps {
   selectedCategoryId: string;
   selectedHand: string;
   availableHands: string[];
+  handYear: AmericanHandYear;
   showCategoryModal: boolean;
   showHandModal: boolean;
   theme: 'light' | 'dark';
@@ -22,6 +23,7 @@ export default function HandSelectionUI({
   selectedCategoryId,
   selectedHand,
   availableHands,
+  handYear,
   theme,
   wallGame = false,
   onShowCategoryModal,
@@ -40,7 +42,7 @@ export default function HandSelectionUI({
           disabled={wallGame}
         >
           <Text style={[styles.dropdownText(colors), !selectedCategoryId && styles.dropdownPlaceholder(colors)]}>
-            {selectedCategoryId ? getCategoryById(selectedCategoryId)?.name || "Select Category" : "Select Category"}
+            {selectedCategoryId ? getCategoryById(selectedCategoryId, handYear)?.name || "Select Category" : "Select Category"}
           </Text>
           <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
         </TouchableOpacity>

@@ -6,6 +6,7 @@ import { styles } from '../../ScoreCalculatorCard.styles';
 import { saveHand } from '@/lib/storage/handStorage';
 import type { SavedHand } from '@/lib/types/game';
 import type { ScoreResult, WinType } from '@/lib/scoring/types';
+import type { AmericanHandYear } from '@/lib/data/handCategories';
 
 interface StandardSaveHandProps {
   handName: string;
@@ -16,7 +17,10 @@ interface StandardSaveHandProps {
   noExposures: boolean;
   result: ScoreResult;
   displayMode: 'currency' | 'points';
-  mode: string;
+  mode: SavedHand['mode'];
+  cardYear: AmericanHandYear;
+  categoryId: string;
+  selectedHand: string;
   standardWinnerExposureCount: string;
   wallGame?: boolean;
   kittyPayout?: number;
@@ -35,6 +39,9 @@ export default function StandardSaveHand({
   result,
   displayMode,
   mode,
+  cardYear,
+  categoryId,
+  selectedHand,
   standardWinnerExposureCount,
   wallGame,
   kittyPayout,
@@ -58,6 +65,9 @@ export default function StandardSaveHand({
         totalToWinner: result.totalToWinner,
         displayMode,
         mode,
+        cardYear,
+        categoryId: categoryId || undefined,
+        lineNumber: selectedHand ? Number(selectedHand) : undefined,
         exposurePenalty: result.exposurePenalty,
         winnerExposureCount: Number(standardWinnerExposureCount || 0),
         perLoserAmounts: result.perLoserAmounts,

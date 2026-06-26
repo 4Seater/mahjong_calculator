@@ -21,7 +21,7 @@ export default function BasePointsInput({
 
   return (
     <View style={{ opacity: wallGame ? 0.5 : 1 }}>
-      <Label colors={colors} sub="Type the printed value from your NMJL card">Base Points</Label>
+      <Label colors={colors} sub="Filled automatically when you pick a line (2026 card), or type the card value">Base Points</Label>
       <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
         (points or cents)
       </Text>
