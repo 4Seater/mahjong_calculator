@@ -125,8 +125,10 @@ export interface TournamentInput {
   // False Mah Jongg outcomes
   // Case A: False MJ & 3 others exposed => all 0
   // Case B: False MJ & exactly 1 player kept hand intact => that one gets +10, others 0
-  falseMahjongAllExposed?: boolean;  // if true => all 0
-  falseMahjongOneIntactId?: string | null; // that player gets +10, others 0
+  // Case C: False MJ & 2+ hands intact => game continues, no score changes
+  falseMahjongAllExposed?: boolean;
+  falseMahjongOneIntactId?: string | null;
+  falseMahjongGameContinues?: boolean;
   
   // Custom rules
   customRules?: Array<{
@@ -156,4 +158,11 @@ export interface TournamentResult {
   pointsByPlayer: Record<string, number>; // includes deductions as negatives
   breakdown: string[];                    // human-readable notes of what was applied
 }
+
+export type TournamentGameResult =
+  | 'valid_win'
+  | 'false_mj_all_exposed'
+  | 'false_mj_one_intact'
+  | 'false_mj_game_continues'
+  | 'time_expired';
 

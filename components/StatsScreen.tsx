@@ -2,15 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getColors } from '@/constants/colors';
-import { getSavedHands, deleteHand, clearHandsForYear } from '@/lib/storage/handStorage';
+import { getSavedHands, deleteHand, clearHandsForCardSetAndYear } from '@/lib/storage/handStorage';
 import { SavedHand } from '@/lib/types/game';
 import { calculateStats } from '@/lib/utils/stats';
 import {
   CARD_YEARS,
-  filterHandsByYear,
+  STATS_CARD_SETS,
+  filterHandsByCardSetAndYear,
   sortHandsByCardOrder,
+  type StatsCardSet,
 } from '@/lib/utils/savedHandSort';
-import type { AmericanHandYear } from '@/lib/data/handCategories';
+import type { HandCardYear } from '@/lib/data/handCategories';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { Seg } from './shared/CalculatorHelpers';
 
@@ -22,13 +24,14 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
   const { theme } = useTheme();
   const colors = getColors(theme);
   const [allHands, setAllHands] = useState<SavedHand[]>([]);
-  const [selectedYear, setSelectedYear] = useState<AmericanHandYear>('2026');
+  const [selectedCardSet, setSelectedCardSet] = useState<StatsCardSet>('american');
+  const [selectedYear, setSelectedYear] = useState<HandCardYear>('2026');
   const [refreshing, setRefreshing] = useState(false);
 
   const yearHands = useMemo(() => {
-    const filtered = filterHandsByYear(allHands, selectedYear);
-    return sortHandsByCardOrder(filtered, selectedYear);
-  }, [allHands, selectedYear]);
+    const filtered = filterHandsByCardSetAndYear(allHands, selectedCardSet, selectedYear);
+    return sortHandsByCardOrder(filtered, selectedCardSet, selectedYear);
+  }, [allHands, selectedCardSet, selectedYear]);
 
   const stats = useMemo(() => calculateStats(yearHands), [yearHands]);
 
@@ -80,9 +83,11 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
   };
 
   const handleClearYear = () => {
+    const cardLabel =
+      STATS_CARD_SETS.find((set) => set.id === selectedCardSet)?.label ?? selectedCardSet;
     Alert.alert(
       `Clear ${selectedYear} History`,
-      `Are you sure you want to delete all saved hands for the ${selectedYear} card? This cannot be undone.`,
+      `Are you sure you want to delete all saved ${cardLabel} hands for the ${selectedYear} card? This cannot be undone.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -90,7 +95,7 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
           style: "destructive",
           onPress: async () => {
             try {
-              await clearHandsForYear(selectedYear);
+              await clearHandsForCardSetAndYear(selectedCardSet, selectedYear);
               await loadHands();
             } catch (error) {
               Alert.alert("Error", "Failed to clear history.");
@@ -116,8 +121,11 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
 
-  const yearHandCount = (year: AmericanHandYear) =>
-    filterHandsByYear(allHands, year).length;
+  const cardSetHandCount = (cardSet: StatsCardSet, year: HandCardYear) =>
+    filterHandsByCardSetAndYear(allHands, cardSet, year).length;
+
+  const selectedCardLabel =
+    STATS_CARD_SETS.find((set) => set.id === selectedCardSet)?.label ?? selectedCardSet;
 
   return (
     <ScrollView
@@ -129,6 +137,24 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
     >
       <View style={styles.container(colors)}>
         <Text style={styles.title(colors)}>Your Statistics</Text>
+
+        {/* Card set selector */}
+        <View style={styles.yearSelectorCard(colors)}>
+          <Text style={styles.cardTitle(colors)}>Calculator Mode</Text>
+          <View style={styles.yearSelectorRow(colors)}>
+            {STATS_CARD_SETS.map((cardSet) => (
+              <Seg
+                key={cardSet.id}
+                selected={selectedCardSet === cardSet.id}
+                onPress={() => setSelectedCardSet(cardSet.id)}
+                colors={colors}
+                theme={theme}
+              >
+                {cardSet.label}
+              </Seg>
+            ))}
+          </View>
+        </View>
 
         {/* Card year selector */}
         <View style={styles.yearSelectorCard(colors)}>
@@ -142,13 +168,13 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
                 colors={colors}
                 theme={theme}
               >
-                {year} ({yearHandCount(year)})
+                {year} ({cardSetHandCount(selectedCardSet, year)})
               </Seg>
             ))}
           </View>
         </View>
 
-        <Text style={styles.yearHeading(colors)}>{selectedYear} NMJL Card</Text>
+        <Text style={styles.yearHeading(colors)}>{selectedCardLabel} — {selectedYear}</Text>
 
         {/* Stats Overview */}
         <View style={styles.statsCard(colors)}>
@@ -223,13 +249,13 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
             <Text style={styles.cardTitle(colors)}>{selectedYear} Hand History</Text>
             {yearHands.length > 0 && (
               <TouchableOpacity onPress={handleClearYear} style={styles.clearButton(colors)}>
-                <Text style={styles.clearButtonText(colors)}>Clear {selectedYear}</Text>
+                <Text style={styles.clearButtonText(colors)}>Clear</Text>
               </TouchableOpacity>
             )}
           </View>
           {yearHands.length === 0 ? (
             <Text style={styles.emptyText(colors)}>
-              No hands saved for the {selectedYear} card yet. Save a hand from the calculator with Year set to {selectedYear}.
+              No hands saved for {selectedCardLabel} ({selectedYear}) yet. Save a hand from the calculator using that mode and year.
             </Text>
           ) : (
             yearHands.map((hand) => (
@@ -250,6 +276,7 @@ export default function StatsScreen({ refreshTrigger }: StatsScreenProps) {
                   <Text style={styles.handDetailText(colors)}>
                     Base: {hand.basePoints} | {hand.winType === 'self_pick' ? 'Self-Pick' : 'Discard'}
                     {hand.jokerless && ' | Jokerless'}
+                    {hand.noExposures && ' | No Exposures'}
                     {hand.isWinner && (
                       <Text style={{ color: '#4CAF50', fontWeight: '700' }}> ✓ WIN</Text>
                     )}

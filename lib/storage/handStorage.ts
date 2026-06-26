@@ -47,13 +47,21 @@ export const clearAllHands = async (): Promise<void> => {
   }
 };
 
-export const clearHandsForYear = async (year: string): Promise<void> => {
+export const clearHandsForCardSetAndYear = async (
+  cardSet: 'american' | 'international',
+  year: string
+): Promise<void> => {
   try {
     const hands = await getSavedHands();
-    const remaining = hands.filter((hand) => (hand.cardYear ?? '2025') !== year);
+    const remaining = hands.filter((hand) => {
+      const handCardSet =
+        hand.mode === 'international' ? 'international' : 'american';
+      const handYear = hand.cardYear ?? '2025';
+      return !(handCardSet === cardSet && handYear === year);
+    });
     await AsyncStorage.setItem(HANDS_STORAGE_KEY, JSON.stringify(remaining));
   } catch (error) {
-    console.error('Error clearing hands for year:', error);
+    console.error('Error clearing hands for card set and year:', error);
     throw error;
   }
 };

@@ -506,7 +506,8 @@ export function computeTournament(input: TournamentInput): TournamentResult {
     timeExpiredNoScore = false,
     deadPlayerIds = [],
     falseMahjongAllExposed = false,
-    falseMahjongOneIntactId = null
+    falseMahjongOneIntactId = null,
+    falseMahjongGameContinues = false
   } = input;
 
   const breakdown: string[] = [];
@@ -527,6 +528,10 @@ export function computeTournament(input: TournamentInput): TournamentResult {
     } else {
       breakdown.push("False MJ; one intact player not found in table → treated as all 0.");
     }
+    return { pointsByPlayer: points, breakdown };
+  }
+  if (falseMahjongGameContinues) {
+    breakdown.push("False MJ with 2+ hands intact → game continues, no score changes.");
     return { pointsByPlayer: points, breakdown };
   }
 
@@ -556,8 +561,8 @@ export function computeTournament(input: TournamentInput): TournamentResult {
   points[winnerId] += Math.max(0, Math.round(basePoints));
   breakdown.push(`Winner ${winnerId} gets base ${Math.round(basePoints)}.`);
 
-  // +10 self-pick
-  if (selfPick) {
+  // +10 self-pick (win on own draw)
+  if (winType === "self_pick" || selfPick) {
     points[winnerId] += 10;
     breakdown.push("Self-pick bonus: +10.");
   }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal, Alert, Switch } from "react-native";
 import { styles } from "./ScoreCalculatorCard.styles";
-import type { WinType, ScoreResult } from "@/lib/scoring/types";
+import type { WinType, ScoreResult, TournamentGameResult } from "@/lib/scoring/types";
 import { Hand, Tile } from "@/lib/scoring/chineseOfficial/tiles";
 import { TileInputEngine } from "@/lib/scoring/chineseOfficial/tileInputEngine";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -34,10 +34,11 @@ import { Row, Label, Seg, RowWithEdit } from "./shared/CalculatorHelpers";
 import CalculatorHeader from "./CalculatorHeader";
 import HandSelectionUI from "./HandSelectionUI";
 import BasePointsInput from "./BasePointsInput";
-import type { AmericanHandYear } from '@/lib/data/handCategories';
-import { getHandScore } from '@/lib/data/handScores';
+import type { HandCardYear, CalculatorCardSet } from '@/lib/data/handData';
+import { getHandScore } from '@/lib/data/handData';
 
-type Mode = "standard" | "tournament" | "international" | "chineseOfficial";
+type Mode = "standard" | "international" | "chineseOfficial";
+type NmjlPlayType = "regular" | "tournament";
 
 type Props = {
   
@@ -72,19 +73,26 @@ export default function ScoreCalculatorCard({
   const [kittyEnabled, setKittyEnabled] = useState(false);
   const [kittyPayout, setKittyPayout] = useState<string>("10");
   
-  // Mode selection - default to standard
+  // Mode selection - default to standard (NMJL)
   const [mode, setMode] = useState<Mode>("standard");
-  const [americanSubMode, setAmericanSubMode] = useState<"standard" | "other">("standard");
+  const [nmjlPlayType, setNmjlPlayType] = useState<NmjlPlayType>("regular");
+
+  const isNmjl = mode === "standard";
+  const isTournamentPlay = isNmjl && nmjlPlayType === "tournament";
+  const isRegularNmjlPlay = isNmjl && nmjlPlayType === "regular";
 
   // American - NMJL card year dropdown affects only Hand Category options.
-  const [americanHandYear, setAmericanHandYear] = useState<AmericanHandYear>("2025");
+  const [americanHandYear, setAmericanHandYear] = useState<HandCardYear>("2026");
   const [showAmericanYearModal, setShowAmericanYearModal] = useState(false);
 
   // International Mahjong card year dropdown affects only Hand Category options.
-  const [internationalHandYear, setInternationalHandYear] = useState<AmericanHandYear>("2026");
+  const [internationalHandYear, setInternationalHandYear] = useState<HandCardYear>("2026");
   const [showInternationalYearModal, setShowInternationalYearModal] = useState(false);
 
-  const activeHandYear = mode === "international" ? internationalHandYear : americanHandYear;
+  const activeCardSet: CalculatorCardSet =
+    mode === "international" ? "international" : "american";
+  const activeHandYear =
+    mode === "international" ? internationalHandYear : americanHandYear;
 
   // Inputs
   const [basePoints, setBasePoints] = useState<string>("");
@@ -130,10 +138,11 @@ export default function ScoreCalculatorCard({
   const [playerIds] = useState(["N", "E", "W", "S"]);
   const [tournamentWinnerId, setTournamentWinnerId] = useState<string>("N");
   const [tournamentDiscarderId, setTournamentDiscarderId] = useState<string>("W");
-  const [selfPick, setSelfPick] = useState(true);
   const [winnerExposureCount, setWinnerExposureCount] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [tournamentGameResult, setTournamentGameResult] =
+    useState<TournamentGameResult>("valid_win");
+  const [falseMahjongIntactPlayerId, setFalseMahjongIntactPlayerId] = useState<string>("N");
   const [isWallGame, setIsWallGame] = useState(false);
-  const [timeExpired, setTimeExpired] = useState(false);
   const [deadN, setDeadN] = useState(false);
   const [deadE, setDeadE] = useState(false);
   const [deadW, setDeadW] = useState(false);
@@ -174,17 +183,22 @@ export default function ScoreCalculatorCard({
     handName,
     setHandName,
     availableHands,
-  } = useHandSelection(activeHandYear);
+  } = useHandSelection(activeHandYear, activeCardSet);
 
-  // Auto-fill Base Points from the selected card year, category, and line number.
+  // Auto-fill Base Points from the selected card set, year, category, and line number.
   useEffect(() => {
     if (selectedCategoryId && selectedHand) {
-      const score = getHandScore(selectedCategoryId, selectedHand, activeHandYear);
+      const score = getHandScore(
+        selectedCategoryId,
+        selectedHand,
+        activeHandYear,
+        activeCardSet
+      );
       if (score !== undefined) {
         setBasePoints(String(score));
       }
     }
-  }, [selectedCategoryId, selectedHand, activeHandYear]);
+  }, [selectedCategoryId, selectedHand, activeHandYear, activeCardSet]);
 
   // Clear Base Points when the line selection is reset (category or year change).
   const prevSelectedHandRef = useRef(selectedHand);
@@ -199,6 +213,18 @@ export default function ScoreCalculatorCard({
   useEffect(() => {
     setSinglesAndPairs(selectedCategoryId === "singles_pairs");
   }, [selectedCategoryId]);
+
+  const basePointsFromCard = useMemo(() => {
+    if (!selectedCategoryId || !selectedHand) return false;
+    return (
+      getHandScore(
+        selectedCategoryId,
+        selectedHand,
+        activeHandYear,
+        activeCardSet
+      ) !== undefined
+    );
+  }, [selectedCategoryId, selectedHand, activeHandYear, activeCardSet]);
 
   // Custom rules using custom hook
   const {
@@ -293,10 +319,10 @@ export default function ScoreCalculatorCard({
     setCustomRuleValues,
     setTournamentWinnerId,
     setTournamentDiscarderId,
-    setSelfPick,
     setWinnerExposureCount,
     setIsWallGame,
-    setTimeExpired,
+    setTournamentGameResult,
+    setFalseMahjongIntactPlayerId,
     setDeadN,
     setDeadE,
     setDeadW,
@@ -354,24 +380,22 @@ export default function ScoreCalculatorCard({
 
   // Tournament result calculation
   const tournamentResult = useTournamentResult({
-    mode,
+    mode: isTournamentPlay ? "tournament" : "standard",
     basePoints,
     winType,
     tournamentWinnerId,
     tournamentDiscarderId,
       playerIds,
-      selfPick,
       jokerless,
       singlesAndPairs,
       winnerExposureCount,
       isWallGame,
-    timeExpired,
+    tournamentGameResult,
+    falseMahjongIntactPlayerId,
     deadN,
     deadE,
     deadW,
     deadS,
-    selectedCustomRuleIds,
-    customRules,
   });
 
   // Chinese Official result calculation using custom hook
@@ -399,24 +423,22 @@ export default function ScoreCalculatorCard({
 
   // Set display format based on mode and sync wall game states
   useEffect(() => {
-    if (mode === "tournament") {
+    if (isTournamentPlay) {
       setDisplayMode("points");
-      // Sync wall game state when switching to tournament mode
       if (wallGame && !isWallGame) {
         setIsWallGame(true);
       }
-    } else if (mode === "standard" || mode === "international") {
+    } else if (isRegularNmjlPlay || mode === "international") {
       setDisplayMode("currency");
-      // Sync wall game state when switching to standard mode
       if (isWallGame && !wallGame) {
         setWallGame(true);
       }
     }
-  }, [mode]);
+  }, [isTournamentPlay, isRegularNmjlPlay, mode]);
 
   // Disable kitty when points mode is selected (no kitty in points mode)
   useEffect(() => {
-    if (displayMode === "points" && (mode === "standard" || mode === "international" || mode === "tournament")) {
+    if (displayMode === "points" && (isRegularNmjlPlay || mode === "international" || isTournamentPlay)) {
       setKittyEnabled(false);
     }
   }, [displayMode, mode]);
@@ -440,20 +462,18 @@ export default function ScoreCalculatorCard({
             onPress={() => setShowModeSelectorModal(true)}
           >
             <Text style={styles.dropdownText(colors)}>
-              {mode === "standard"
-                ? (americanSubMode === "standard" ? "National Mahjong League" : "National Mahjong League - Other")
+              {isNmjl
+                ? "National Mahjong League"
                 : mode === "international"
                   ? "International Mahjong"
-                  : mode === "tournament"
-                    ? "Tournament"
-                    : "Chinese Official"}
+                  : "Chinese Official"}
             </Text>
             <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        {/* Year Selection — NMJL & Tournament share the same card year (affects Hand Category only) */}
-        {((mode === "standard" && americanSubMode === "standard") || mode === "tournament") && (
+        {/* Year Selection — NMJL (affects Hand Category only) */}
+        {isNmjl && (
           <View style={styles.section}>
             <Label colors={colors}>Year</Label>
             <TouchableOpacity
@@ -463,6 +483,33 @@ export default function ScoreCalculatorCard({
               <Text style={styles.dropdownText(colors)}>{americanHandYear}</Text>
               <FontAwesome5 name="chevron-down" size={14} color={colors.textSecondary} />
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Play Type — Regular vs Tournament (NMJL only, after year; defaults to Regular) */}
+        {isNmjl && (
+          <View style={styles.section}>
+            <Label colors={colors} sub="Regular money/points scoring or tournament points">
+              Play Type
+            </Label>
+            <Row style={{ justifyContent: "flex-start" }} colors={colors}>
+              <Seg
+                selected={nmjlPlayType === "regular"}
+                onPress={() => setNmjlPlayType("regular")}
+                colors={colors}
+                theme={theme}
+              >
+                Regular
+              </Seg>
+              <Seg
+                selected={nmjlPlayType === "tournament"}
+                onPress={() => setNmjlPlayType("tournament")}
+                colors={colors}
+                theme={theme}
+              >
+                Tournament
+              </Seg>
+            </Row>
           </View>
         )}
 
@@ -481,7 +528,7 @@ export default function ScoreCalculatorCard({
         )}
 
         {/* Currency/Points Selector - Only show for standard/international mode, tournament mode is always points */}
-        {(mode === "standard" || mode === "international") && (
+        {(isRegularNmjlPlay || mode === "international") && (
         <View style={styles.section}>
             <Label colors={colors}>Score format</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
@@ -491,7 +538,7 @@ export default function ScoreCalculatorCard({
         </View>
         )}
         {/* Tournament mode always uses points - show as read-only */}
-        {mode === "tournament" && (
+        {isTournamentPlay && (
         <View style={styles.section}>
             <Label colors={colors}>Score format</Label>
           <Row style={{ justifyContent: "flex-start" }} colors={colors}>
@@ -512,16 +559,16 @@ export default function ScoreCalculatorCard({
               <Label colors={colors} sub="No wins when the tiles run out">Wall Game</Label>
             </View>
             <Switch 
-              value={mode === "tournament" ? isWallGame : wallGame} 
+              value={isTournamentPlay ? isWallGame : wallGame} 
               onValueChange={(value) => {
-                if (mode === "tournament") {
+                if (isTournamentPlay) {
                   setIsWallGame(value);
                 } else {
                   setWallGame(value);
                 }
               }}
               trackColor={{ false: colors.border, true: colors.gobutton }}
-              thumbColor={(mode === "tournament" ? isWallGame : wallGame) ? colors.card : colors.textSecondary}
+              thumbColor={(isTournamentPlay ? isWallGame : wallGame) ? colors.card : colors.textSecondary}
             />
             {/* Invisible placeholder to align with other toggles */}
             <View style={{ padding: 8, marginLeft: 8, width: 30 }}>
@@ -581,6 +628,7 @@ export default function ScoreCalculatorCard({
               theme={theme}
               wallGame={wallGame}
               handYear={activeHandYear}
+              cardSet={activeCardSet}
               onShowCategoryModal={() => setShowCategoryModal(true)}
               onShowHandModal={() => setShowHandModal(true)}
             />
@@ -590,11 +638,12 @@ export default function ScoreCalculatorCard({
           basePoints={basePoints}
           theme={theme}
           wallGame={wallGame}
+          fromCardSelection={basePointsFromCard}
           onBasePointsChange={setBasePoints}
         />
 
         {/* Standard Mode Controls */}
-        {(mode === "standard" || mode === "international") && (
+        {(isRegularNmjlPlay || mode === "international") && (
           <StandardModeControls
             wallGame={wallGame}
             winType={winType}
@@ -639,39 +688,33 @@ export default function ScoreCalculatorCard({
       )}
 
       {/* Tournament Mode Controls */}
-      {mode === "tournament" && (
+      {isTournamentPlay && (
         <TournamentModeControls
           winType={winType}
-          selfPick={selfPick}
           jokerless={jokerless}
           tournamentWinnerId={tournamentWinnerId}
           tournamentDiscarderId={tournamentDiscarderId}
           winnerExposureCount={winnerExposureCount}
           isWallGame={isWallGame}
-          timeExpired={timeExpired}
+          tournamentGameResult={tournamentGameResult}
+          falseMahjongIntactPlayerId={falseMahjongIntactPlayerId}
           deadN={deadN}
           deadE={deadE}
           deadW={deadW}
           deadS={deadS}
           playerIds={playerIds}
-          customRules={customRules}
-          selectedCustomRuleIds={selectedCustomRuleIds}
           theme={theme}
           onWinTypeChange={setWinType}
-          onSelfPickChange={setSelfPick}
           onJokerlessChange={setJokerless}
           onTournamentWinnerIdChange={setTournamentWinnerId}
           onTournamentDiscarderIdChange={setTournamentDiscarderId}
           onWinnerExposureCountChange={setWinnerExposureCount}
-          onIsWallGameChange={setIsWallGame}
-          onTimeExpiredChange={setTimeExpired}
+          onTournamentGameResultChange={setTournamentGameResult}
+          onFalseMahjongIntactPlayerIdChange={setFalseMahjongIntactPlayerId}
           onDeadNChange={setDeadN}
           onDeadEChange={setDeadE}
           onDeadWChange={setDeadW}
           onDeadSChange={setDeadS}
-          onSelectedCustomRuleIdsChange={setSelectedCustomRuleIds}
-          onCustomRulesChange={setCustomRules}
-          onShowCustomRuleModal={handleOpenCustomRuleModal}
         />
       )}
 
@@ -720,7 +763,7 @@ export default function ScoreCalculatorCard({
 
       {/* Output */}
       <View style={styles.resultsSection(colors)}>
-        {mode === "standard" || mode === "international" ? (
+        {(isRegularNmjlPlay || mode === "international") ? (
           <StandardResultDisplay
             result={result}
             winType={winType}
@@ -747,7 +790,7 @@ export default function ScoreCalculatorCard({
             calculatorMode={mode === "international" ? "international" : "standard"}
             onClear={clearStandard}
           />
-        ) : mode === "tournament" ? (
+        ) : isTournamentPlay ? (
           <TournamentResultDisplay
             result={tournamentResult}
             theme={theme}
@@ -803,17 +846,16 @@ export default function ScoreCalculatorCard({
     <ModeSelectorModal
       visible={showModeSelectorModal}
       currentMode={mode}
-      currentAmericanSubMode={americanSubMode}
       theme={theme}
       onClose={() => setShowModeSelectorModal(false)}
       onSelectMode={(selectedMode) => {
         setMode(selectedMode);
         if (selectedMode === "standard") {
-          setDisplayMode("currency"); // Reset display format to money when switching to standard
+          setNmjlPlayType("regular");
+          setDisplayMode("currency");
+        } else if (selectedMode === "international") {
+          setDisplayMode("currency");
         }
-      }}
-      onSelectAmericanSubMode={(subMode) => {
-        setAmericanSubMode(subMode);
       }}
     />
 
@@ -840,6 +882,7 @@ export default function ScoreCalculatorCard({
       visible={showCategoryModal}
       selectedCategoryId={selectedCategoryId}
       handYear={activeHandYear}
+      cardSet={activeCardSet}
       theme={theme}
       onClose={() => setShowCategoryModal(false)}
       onSelectCategory={(categoryId) => {
@@ -854,6 +897,7 @@ export default function ScoreCalculatorCard({
       selectedHand={selectedHand}
       availableHands={availableHands}
       handYear={activeHandYear}
+      cardSet={activeCardSet}
       theme={theme}
       onClose={() => setShowHandModal(false)}
       onSelectHand={(handNumber) => {

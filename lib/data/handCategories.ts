@@ -5,7 +5,9 @@ export interface HandCategory {
   maxNumber: number;
 }
 
-export type AmericanHandYear = '2026' | '2025';
+export type HandCardYear = '2026' | '2025';
+/** @deprecated Use HandCardYear — kept for existing imports */
+export type AmericanHandYear = HandCardYear;
 
 /**
  * Hand Category dropdown options for each American card year.

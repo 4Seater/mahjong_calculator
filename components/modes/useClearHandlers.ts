@@ -37,10 +37,10 @@ interface UseClearHandlersParams {
   // Tournament mode setters
   setTournamentWinnerId?: (value: string) => void;
   setTournamentDiscarderId?: (value: string) => void;
-  setSelfPick?: (value: boolean) => void;
   setWinnerExposureCount?: (value: 0 | 1 | 2 | 3 | 4) => void;
   setIsWallGame?: (value: boolean) => void;
-  setTimeExpired?: (value: boolean) => void;
+  setTournamentGameResult?: (value: import('@/lib/scoring/types').TournamentGameResult) => void;
+  setFalseMahjongIntactPlayerId?: (value: string) => void;
   setDeadN?: (value: boolean) => void;
   setDeadE?: (value: boolean) => void;
   setDeadW?: (value: boolean) => void;
@@ -89,10 +89,10 @@ export function useClearHandlers(params: UseClearHandlersParams) {
     setCustomRuleValues,
     setTournamentWinnerId,
     setTournamentDiscarderId,
-    setSelfPick,
     setWinnerExposureCount,
     setIsWallGame,
-    setTimeExpired,
+    setTournamentGameResult,
+    setFalseMahjongIntactPlayerId,
     setDeadN,
     setDeadE,
     setDeadW,
@@ -167,10 +167,10 @@ export function useClearHandlers(params: UseClearHandlersParams) {
     setBasePoints("");
     setTournamentWinnerId?.("N");
     setTournamentDiscarderId?.("W");
-    setSelfPick?.(true);
     setWinnerExposureCount?.(0);
     setIsWallGame?.(false);
-    setTimeExpired?.(false);
+    setTournamentGameResult?.("valid_win");
+    setFalseMahjongIntactPlayerId?.("N");
     setDeadN?.(false);
     setDeadE?.(false);
     setDeadW?.(false);
@@ -191,10 +191,10 @@ export function useClearHandlers(params: UseClearHandlersParams) {
     setJokerless,
     setTournamentWinnerId,
     setTournamentDiscarderId,
-    setSelfPick,
     setWinnerExposureCount,
     setIsWallGame,
-    setTimeExpired,
+    setTournamentGameResult,
+    setFalseMahjongIntactPlayerId,
     setDeadN,
     setDeadE,
     setDeadW,

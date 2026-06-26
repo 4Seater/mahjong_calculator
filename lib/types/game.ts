@@ -1,4 +1,4 @@
-import type { AmericanHandYear } from '@/lib/data/handCategories';
+import type { HandCardYear } from '@/lib/data/handCategories';
 
 export interface SavedHand {
   id: string;
@@ -13,7 +13,7 @@ export interface SavedHand {
   displayMode: "currency" | "points";
   mode: "standard" | "tournament" | "international";
   /** NMJL card year used when the hand was saved. */
-  cardYear?: AmericanHandYear;
+  cardYear?: HandCardYear;
   /** Hand category id from the card (for statistics sorting). */
   categoryId?: string;
   /** Line number on the card (for statistics sorting). */

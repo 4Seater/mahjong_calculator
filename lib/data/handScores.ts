@@ -1,10 +1,10 @@
-import type { AmericanHandYear } from './handCategories';
+import type { HandCardYear } from './handCategories';
 
 /**
  * Card hand values (base points) keyed by category + line number per year.
  * Key format: `${categoryId}:${lineNumber}`
  */
-export const HAND_SCORES_BY_YEAR: Record<AmericanHandYear, Record<string, number>> = {
+export const HAND_SCORES_BY_YEAR: Record<HandCardYear, Record<string, number>> = {
   '2025': {},
   '2026': {
     '2026:1': 25,
@@ -63,12 +63,4 @@ export const HAND_SCORES_BY_YEAR: Record<AmericanHandYear, Record<string, number
     'singles_pairs:5': 50,
     'singles_pairs:6': 75,
   },
-};
-
-export const getHandScore = (
-  categoryId: string,
-  lineNumber: string,
-  year: AmericanHandYear
-): number | undefined => {
-  return HAND_SCORES_BY_YEAR[year][`${categoryId}:${lineNumber}`];
 };

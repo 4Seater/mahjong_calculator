@@ -6,7 +6,7 @@ import { styles } from '../../ScoreCalculatorCard.styles';
 import { saveHand } from '@/lib/storage/handStorage';
 import type { SavedHand } from '@/lib/types/game';
 import type { ScoreResult, WinType } from '@/lib/scoring/types';
-import type { AmericanHandYear } from '@/lib/data/handCategories';
+import type { HandCardYear } from '@/lib/data/handData';
 
 interface StandardSaveHandProps {
   handName: string;
@@ -18,7 +18,7 @@ interface StandardSaveHandProps {
   result: ScoreResult;
   displayMode: 'currency' | 'points';
   mode: SavedHand['mode'];
-  cardYear: AmericanHandYear;
+  cardYear: HandCardYear;
   categoryId: string;
   selectedHand: string;
   standardWinnerExposureCount: string;
@@ -52,6 +52,19 @@ export default function StandardSaveHand({
   const colors = getColors(theme);
 
   const handleSave = async () => {
+    if (!wallGame && Number(basePoints || 0) <= 0) {
+      Alert.alert(
+        "Missing Base Points",
+        "Select a hand category and line number so base points fill in, or enter them manually."
+      );
+      return;
+    }
+
+    const statsLabel =
+      mode === "international"
+        ? `International Mahjong → ${cardYear}`
+        : `National Mahjong League → ${cardYear}`;
+
     try {
       const handToSave: SavedHand = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -78,7 +91,10 @@ export default function StandardSaveHand({
       await saveHand(handToSave);
       onSaveSuccess(true);
       setTimeout(() => onSaveSuccess(false), 2000);
-      Alert.alert("Saved!", "Hand saved successfully.");
+      Alert.alert(
+        "Saved!",
+        `Hand saved. View it in Statistics under ${statsLabel}.`
+      );
     } catch (error) {
       Alert.alert("Error", "Failed to save hand. Please try again.");
       console.error("Save error:", error);

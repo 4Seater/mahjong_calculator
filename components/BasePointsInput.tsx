@@ -8,6 +8,7 @@ interface BasePointsInputProps {
   basePoints: string;
   theme: 'light' | 'dark';
   wallGame?: boolean;
+  fromCardSelection?: boolean;
   onBasePointsChange: (value: string) => void;
 }
 
@@ -15,16 +16,25 @@ export default function BasePointsInput({
   basePoints,
   theme,
   wallGame = false,
+  fromCardSelection = false,
   onBasePointsChange,
 }: BasePointsInputProps) {
   const colors = getColors(theme);
 
   return (
     <View style={{ opacity: wallGame ? 0.5 : 1 }}>
-      <Label colors={colors} sub="Filled automatically when you pick a line (2026 card), or type the card value">Base Points</Label>
-      <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
-        (points or cents)
-      </Text>
+      <Label colors={colors} sub="Auto-filled when you pick a category and line, or type the card value manually">
+        Base Points
+      </Label>
+      {fromCardSelection && basePoints ? (
+        <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
+          From card — {basePoints} pts (editable)
+        </Text>
+      ) : (
+        <Text style={[styles.labelSubtext(colors), { marginTop: 2, marginBottom: 6 }]}>
+          (points or cents)
+        </Text>
+      )}
       <TextInput
         keyboardType="number-pad"
         value={basePoints}

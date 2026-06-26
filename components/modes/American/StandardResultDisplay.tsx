@@ -6,7 +6,7 @@ import type { ScoreResult } from '@/lib/scoring/types';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 import StandardSaveHand from './StandardSaveHand';
 import StandardClearButton from './StandardClearButton';
-import type { AmericanHandYear } from '@/lib/data/handCategories';
+import type { HandCardYear } from '@/lib/data/handData';
 import type { SavedHand } from '@/lib/types/game';
 
 interface StandardResultDisplayProps {
@@ -30,7 +30,7 @@ interface StandardResultDisplayProps {
   kittyPayout?: number;
   saveSuccess: boolean;
   onSaveSuccess: (success: boolean) => void;
-  cardYear: AmericanHandYear;
+  cardYear: HandCardYear;
   categoryId: string;
   selectedHand: string;
   calculatorMode: SavedHand['mode'];
