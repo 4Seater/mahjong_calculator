@@ -77,7 +77,11 @@ export default function StandardResultDisplay({
             Wall Game: No wins when tiles run out
           </Text>
           <Text style={styles.resultText(colors)}>
-            No scoring applies in a wall game. All players receive 0 points.
+            {result.rule.kittyApplied && (result.kittyPerPlayer ?? 0) > 0
+              ? displayMode === "currency"
+                ? `All players pay $${((result.kittyPerPlayer ?? 0) / 100).toFixed(2)} to the kitty.`
+                : `All players awarded ${result.kittyPerPlayer ?? 0} pts each.`
+              : "No scoring applies in a wall game. All players receive 0 points."}
           </Text>
         </View>
       ) : (

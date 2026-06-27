@@ -2,6 +2,7 @@ import type {
   ScoreInput, ScoreResult,
   TournamentInput, TournamentResult
 } from "./types";
+import { DEFAULT_WALL_GAME_POINTS } from "./kitty";
 
 /* ---------- STANDARD SCORER (your existing function) ---------- */
 function sanitizeBase(n: number): number {
@@ -40,8 +41,8 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     const isPointsMode = input.displayMode === 'points';
     
     if (isPointsMode) {
-      // Points mode: all players are awarded points (default 25 if no kitty amount specified)
-      kittyPerPlayer = input.kittyPayout && input.kittyPayout > 0 ? input.kittyPayout : 25;
+      // Points mode: all players are awarded points (default 10 each)
+      kittyPerPlayer = input.kittyPayout && input.kittyPayout > 0 ? input.kittyPayout : DEFAULT_WALL_GAME_POINTS;
       totalToWinner = kittyPerPlayer; // Each player gets this amount
       kittyTotalPayout = kittyPerPlayer * numPlayers; // All players awarded
     } else {
