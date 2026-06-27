@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { computeNmjlStandard } from '@/lib/scoring/engine';
+import { getEffectiveKittyPayout } from '@/lib/scoring/kitty';
 import type { WinType, NoExposureBonusConfig } from '@/lib/scoring/types';
 import type { CustomRule } from '@/lib/storage/customRulesStorage';
 
@@ -69,6 +70,8 @@ export function useStandardResult({
         } as NoExposureBonusConfig)
       : undefined;
 
+  const effectiveKittyPayout = getEffectiveKittyPayout(kittyPayout, customRuleValues);
+
   const result = useMemo(() => {
     return computeNmjlStandard({
       basePoints: Number(basePoints || 0),
@@ -82,7 +85,7 @@ export function useStandardResult({
       heavenlyHand,
       wallGame,
       kittyEnabled,
-      kittyPayout: (kittyEnabled || (displayMode === 'points' && wallGame)) ? Number(kittyPayout || 10) : 0,
+      kittyPayout: (kittyEnabled || (displayMode === 'points' && wallGame)) ? effectiveKittyPayout : 0,
       displayMode,
       winnerId,
       discarderId,
@@ -141,6 +144,8 @@ export function useStandardResult({
     wallGame,
     kittyEnabled,
     kittyPayout,
+    effectiveKittyPayout,
+    displayMode,
     winnerId,
     discarderId,
     otherPlayerIds,

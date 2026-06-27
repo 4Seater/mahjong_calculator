@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Modal, Alert, Switch } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Modal, Alert, Switch, KeyboardAvoidingView, Platform } from "react-native";
 import { styles } from "./ScoreCalculatorCard.styles";
 import type { WinType, ScoreResult, TournamentGameResult } from "@/lib/scoring/types";
 import { Hand, Tile } from "@/lib/scoring/chineseOfficial/tiles";
@@ -36,6 +36,7 @@ import HandSelectionUI from "./HandSelectionUI";
 import BasePointsInput from "./BasePointsInput";
 import type { HandCardYear, CalculatorCardSet } from '@/lib/data/handData';
 import { getHandScore } from '@/lib/data/handData';
+import { DEFAULT_KITTY_PAYOUT, getEffectiveKittyPayout } from '@/lib/scoring/kitty';
 
 type Mode = "standard" | "international" | "chineseOfficial";
 type NmjlPlayType = "regular" | "tournament";
@@ -71,7 +72,7 @@ export default function ScoreCalculatorCard({
   // Wall Game and Kitty
   const [wallGame, setWallGame] = useState(false);
   const [kittyEnabled, setKittyEnabled] = useState(false);
-  const [kittyPayout, setKittyPayout] = useState<string>("10");
+  const [kittyPayout, setKittyPayout] = useState<string>(String(DEFAULT_KITTY_PAYOUT));
   
   // Mode selection - default to standard (NMJL)
   const [mode, setMode] = useState<Mode>("standard");
@@ -348,6 +349,30 @@ export default function ScoreCalculatorCard({
     }
   }, [noExposures]);
 
+  const effectiveKittyPayout = getEffectiveKittyPayout(kittyPayout, customRuleValues);
+
+  const handleWallGameChange = (value: boolean) => {
+    if (isTournamentPlay) {
+      setIsWallGame(value);
+      return;
+    }
+    setWallGame(value);
+    if (value && displayMode === "currency") {
+      setKittyPayout(String(DEFAULT_KITTY_PAYOUT));
+      setKittyEnabled(true);
+    }
+  };
+
+  const handleSaveEditedRule = () => {
+    const ruleKey = editingRuleKey;
+    const ruleValue = editRuleValue;
+    handleSaveEditRule();
+    if (ruleKey === "kitty" && ruleValue) {
+      setKittyPayout(ruleValue);
+      setKittyEnabled(true);
+    }
+  };
+
   // Standard result calculation using custom hook
   const result = useStandardResult({
     basePoints,
@@ -446,7 +471,18 @@ export default function ScoreCalculatorCard({
 
   return (
     <>
-      <ScrollView style={styles.scrollView(colors)} contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 4 : 0}
+      >
+      <ScrollView
+        style={styles.scrollView(colors)}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+      >
         <View style={styles.container(colors)}>
           <CalculatorHeader
             theme={theme}
@@ -560,13 +596,7 @@ export default function ScoreCalculatorCard({
             </View>
             <Switch 
               value={isTournamentPlay ? isWallGame : wallGame} 
-              onValueChange={(value) => {
-                if (isTournamentPlay) {
-                  setIsWallGame(value);
-                } else {
-                  setWallGame(value);
-                }
-              }}
+              onValueChange={handleWallGameChange}
               trackColor={{ false: colors.border, true: colors.gobutton }}
               thumbColor={(isTournamentPlay ? isWallGame : wallGame) ? colors.card : colors.textSecondary}
             />
@@ -593,11 +623,11 @@ export default function ScoreCalculatorCard({
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <RowWithEdit 
                     colors={colors} 
-                    onEdit={() => handleEditRule('kitty', 'points', Number(kittyPayout || 10))}
+                    onEdit={() => handleEditRule('kitty', 'points', effectiveKittyPayout)}
                     editKey="kitty"
                   >
                     <View style={{ flex: 1, marginLeft: 0 }}>
-                      <Label colors={colors} sub={`All players (including winner) pay ${customRuleValues.kitty?.value || kittyPayout || 10} ${displayMode === 'currency' ? 'cents' : 'points'} to the kitty. Winner of the next game is awarded the kitty in addition to their payout for that game.`}>
+                      <Label colors={colors} sub={`All players (including winner) pay ${effectiveKittyPayout} ${displayMode === 'currency' ? 'cents' : 'points'} to the kitty. Winner of the next game is awarded the kitty in addition to their payout for that game.`}>
                         Kitty
                       </Label>
                     </View>
@@ -781,7 +811,7 @@ export default function ScoreCalculatorCard({
             noExposures={noExposures}
             standardWinnerExposureCount={standardWinnerExposureCount}
             wallGame={wallGame}
-            kittyPayout={kittyEnabled ? Number(kittyPayout || 10) : undefined}
+            kittyPayout={kittyEnabled ? effectiveKittyPayout : undefined}
             saveSuccess={saveSuccess}
             onSaveSuccess={setSaveSuccess}
             cardYear={activeHandYear}
@@ -811,6 +841,7 @@ export default function ScoreCalculatorCard({
       </View>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
 
     {/* Settings Menu Modal - Slides from bottom */}
     <SettingsMenuModal
@@ -944,7 +975,7 @@ export default function ScoreCalculatorCard({
       onClose={() => setShowEditRuleModal(false)}
       onTypeChange={setEditRuleType}
       onValueChange={setEditRuleValue}
-      onSave={handleSaveEditRule}
+      onSave={handleSaveEditedRule}
     />
 
     {/* Chinese Official Fan Selection Modal */}

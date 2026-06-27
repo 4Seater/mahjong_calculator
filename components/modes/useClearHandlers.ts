@@ -120,7 +120,7 @@ export function useClearHandlers(params: UseClearHandlersParams) {
     setHeavenlyHand?.(false);
     setWallGame?.(false);
     setKittyEnabled?.(false);
-    setKittyPayout?.("10");
+    setKittyPayout?.("25");
     setNoExposures?.(false);
     setExposurePenaltyEnabled?.(false);
     setExposurePenaltyPerExposure?.("5");

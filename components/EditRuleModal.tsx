@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getColors } from '@/constants/colors';
 import { styles } from './ScoreCalculatorCard.styles';
@@ -58,19 +58,28 @@ export default function EditRuleModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalOverlayBottom(colors)}
-        activeOpacity={1}
-        onPress={onClose}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.modalContent(colors)}>
-          <View style={styles.modalHeader(colors)}>
-            <Text style={styles.modalTitle(colors)}>Edit {getRuleName()}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <FontAwesome5 name="times" size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView style={styles.modalScrollView} contentContainerStyle={{ padding: 16 }}>
+        <TouchableOpacity
+          style={styles.modalOverlayBottom(colors)}
+          activeOpacity={1}
+          onPress={onClose}
+        >
+          <View style={styles.modalContent(colors)} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader(colors)}>
+                <Text style={styles.modalTitle(colors)}>Edit {getRuleName()}</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <FontAwesome5 name="times" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                style={styles.modalScrollView}
+                contentContainerStyle={{ padding: 16 }}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
+              >
             <View style={{ marginBottom: 16 }}>
               <Label colors={colors}>Type</Label>
               <Row style={{ justifyContent: "flex-start" }} colors={colors}>
@@ -114,9 +123,10 @@ export default function EditRuleModal({
               <FontAwesome5 name="save" size={16} color={colors.card} style={{ marginRight: 8 }} />
               <Text style={styles.saveButtonText(colors, theme)}>Save</Text>
             </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
+              </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

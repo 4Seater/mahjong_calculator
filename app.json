@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mahjong Calculator",
     "slug": "mahjong-calculator",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/calculator-logo.png",
     "userInterfaceStyle": "light",

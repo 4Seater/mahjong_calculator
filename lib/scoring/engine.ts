@@ -40,8 +40,8 @@ export function computeNmjlStandard(input: ScoreInput): ScoreResult {
     const isPointsMode = input.displayMode === 'points';
     
     if (isPointsMode) {
-      // Points mode: all players are awarded points (default 10 if no kitty amount specified)
-      kittyPerPlayer = input.kittyPayout && input.kittyPayout > 0 ? input.kittyPayout : 10;
+      // Points mode: all players are awarded points (default 25 if no kitty amount specified)
+      kittyPerPlayer = input.kittyPayout && input.kittyPayout > 0 ? input.kittyPayout : 25;
       totalToWinner = kittyPerPlayer; // Each player gets this amount
       kittyTotalPayout = kittyPerPlayer * numPlayers; // All players awarded
     } else {

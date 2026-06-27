@@ -16,6 +16,5 @@ web-build/
 .git/
 .vscode/
 .idea/
-package-lock.json
 logo_border.png
 
